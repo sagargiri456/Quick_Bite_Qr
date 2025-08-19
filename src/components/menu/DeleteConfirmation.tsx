@@ -1,0 +1,48 @@
+// src/components/menu/DeleteConfirmation.tsx
+interface DeleteConfirmationProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  itemName: string;
+}
+
+export default function DeleteConfirmation({
+  isOpen,
+  onClose,
+  onConfirm,
+  itemName
+}: DeleteConfirmationProps) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+        <div className="text-center mb-4">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </div>
+        </div>
+        <h3 className="text-lg font-semibold text-gray-800 text-center mb-2">Confirm Deletion</h3>
+        <p className="text-gray-600 text-center mb-6">
+          Are you sure you want to delete &quot;{itemName}&quot;? This action cannot be undone.
+        </p>
+        <div className="flex justify-center space-x-4">
+          <button
+            onClick={onClose}
+            className="px-5 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-5 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
