@@ -1,6 +1,7 @@
 // src/app/dashboard/menu/[id]/edit/page.tsx
 'use client';
 
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useMenuItems } from '@/lib/hooks/useMenuItems';
 import MenuItemForm from '@/components/menu/MenuItemForm';
@@ -15,13 +16,19 @@ export default function EditMenuItemPage() {
   const menuItem = menuItems.find(item => item.id === itemId);
 
   if (!menuItem) {
-    return <div className="p-8">Menu item not found</div>;
+    return <div className="p-8">Menu item not found.</div>;
   }
 
-  const handleSubmit = async (data: any) => {
+  // CHANGED: handleSubmit preserves original category and popular status
+  const handleSubmit = async (data: { name: string; description: string; price: number }) => {
     setIsSubmitting(true);
     try {
-      await updateMenuItem(itemId, data);
+      // Combine original data with new form data to preserve fields not in the form
+      const updatedItemData = {
+        ...menuItem,
+        ...data,
+      };
+      await updateMenuItem(itemId, updatedItemData);
       router.push('/dashboard/menu');
     } catch (error) {
       console.error('Failed to update menu item:', error);
@@ -32,7 +39,7 @@ export default function EditMenuItemPage() {
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Edit Menu Item</h1>
-      <MenuItemForm 
+      <MenuItemForm
         initialData={menuItem}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
