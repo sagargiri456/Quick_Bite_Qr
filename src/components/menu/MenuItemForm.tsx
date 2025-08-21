@@ -1,4 +1,3 @@
-// src/components/menu/MenuItemForm.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -79,13 +78,17 @@ export default function MenuItemForm({
     <div className="bg-white rounded-2xl shadow-md overflow-hidden">
       <div className="p-1 bg-gradient-to-r from-indigo-500 to-blue-500"></div>
       <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
-        <div>
-          <label className="block text-sm font-semibold text-gray-800 mb-2">Item Image</label>
+        
+        {/* --- MODIFICATION START --- */}
+        <div className="flex flex-col items-center">
+          <label className="w-full text-sm font-semibold text-gray-800 mb-2">Item Image</label>
           <ImageUpload
             value={formData.imageUrl}
             onChange={(url) => setFormData(prev => ({ ...prev, imageUrl: url || '' }))}
           />
         </div>
+        {/* --- MODIFICATION END --- */}
+
         <div>
           <label htmlFor="name" className="block text-sm font-semibold text-gray-800 mb-2">Name *</label>
           <input
