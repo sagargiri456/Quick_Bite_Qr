@@ -5,7 +5,7 @@ export interface MenuItem {
   name: string;
   description: string;
   price: number;
-  category: MenuCategory;
+  // category: MenuCategory;
   photo_url?: string;
   // ADDED: Make sure this property exists
   available: boolean; 

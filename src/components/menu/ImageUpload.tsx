@@ -20,7 +20,7 @@ export default function ImageUpload({ onChange, value }: ImageUploadProps) {
   const { startUpload } = useUploadThing(
     "menuItemImage",
     {
-      onClientUploadComplete: (res) => {
+      onClientUploadComplete: (res:{url:string}[]) => {
         setIsUploading(false);
         setUploadError(null);
         onChange(res?.[0].url);
