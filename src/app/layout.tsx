@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+
+// ✅ Mark AuthListener as a client component if it uses browser APIs
 import AuthListener from "@/components/AuthListener";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -25,8 +28,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      ><AuthListener />
+
+      >
+        {/* ✅ Wrap client-only logic in a dedicated client component */}
+        <AuthListener />
         {children}
       </body>
     </html>

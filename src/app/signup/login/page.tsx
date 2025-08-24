@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { loginWithEmail } from '@/lib/auth/login'
+import { loginWithEmail } from'@/lib/auth/login'
 import {supabase} from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
