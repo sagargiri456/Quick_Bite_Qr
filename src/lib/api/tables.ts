@@ -2,16 +2,18 @@ import { supabase } from '@/lib/supabase/client';
 
 export interface Table {
   id: number;
-  table_number: string; // CHANGED
+  table_number: string;
   qr_code_url: string;
+  restaurant_id: string; // Added this property
 }
 
 export type NewTableData = {
-  table_number: string; // CHANGED
+  table_number: string;
   qr_code_url: string;
+  restaurant_id: string; // Added this property
 };
 
-// READ all tables
+// READ all tables (This will now be filtered by RLS policies)
 export const getTables = async (): Promise<Table[]> => {
   const { data, error } = await supabase.from('tables').select('*').order('id');
   if (error) throw new Error(error.message);

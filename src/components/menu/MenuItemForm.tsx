@@ -5,8 +5,8 @@ import { MenuItem } from '@/types/menu';
 import ImageUpload from './ImageUpload';
 
 interface MenuItemFormProps {
-  initialData?: Omit<MenuItem, 'id' | 'category' | 'popular'> & { imageUrl?: string | null };
-  onSubmit: (data: { name: string; description: string; price: number; imageUrl?: string }) => void;
+  initialData?: MenuItem;
+  onSubmit: (data: Omit<MenuItem, 'id' | 'restaurant_id' | 'created_at'>) => void;
   isSubmitting: boolean;
   onCancel: () => void;
 }
@@ -21,7 +21,8 @@ export default function MenuItemForm({
     name: '',
     description: '',
     price: '',
-    imageUrl: '',
+    photo_url: '',
+    available: true,
   });
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -32,7 +33,8 @@ export default function MenuItemForm({
         name: initialData.name,
         description: initialData.description,
         price: String(initialData.price),
-        imageUrl: initialData.imageUrl || '',
+        photo_url: initialData.photo_url || '',
+        available: initialData.available ?? true,
       });
     }
   }, [initialData]);
@@ -51,7 +53,14 @@ export default function MenuItemForm({
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
+    
+    if (type === 'checkbox') {
+      const { checked } = e.target as HTMLInputElement;
+      setFormData(prev => ({ ...prev, [name]: checked }));
+      return;
+    }
+    
     if (name === 'price') {
       const numericValue = value.replace(/[^0-9.]/g, '');
       const decimalCount = (numericValue.match(/\./g) || []).length;
@@ -59,6 +68,7 @@ export default function MenuItemForm({
       setFormData(prev => ({ ...prev, [name]: sanitizedValue }));
       return;
     }
+    
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -66,68 +76,100 @@ export default function MenuItemForm({
     e.preventDefault();
     if (validate()) {
       onSubmit({
-        name: formData.name,
-        description: formData.description,
+        ...formData,
         price: parseFloat(formData.price),
-        imageUrl: formData.imageUrl,
       });
     }
   };
 
   return (
     <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-      <div className="p-1 bg-gradient-to-r from-indigo-500 to-blue-500"></div>
       <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
-        
-        {/* --- MODIFICATION START --- */}
+        {/* Image Upload */}
         <div className="flex flex-col items-center">
-          <label className="w-full text-sm font-semibold text-gray-800 mb-2">Item Image</label>
+          <label className="w-full text-lg font-semibold text-gray-800 mb-2">Item Image</label>
           <ImageUpload
-            value={formData.imageUrl}
-            onChange={(url) => setFormData(prev => ({ ...prev, imageUrl: url || '' }))}
+            value={formData.photo_url}
+            onChange={(url) => setFormData(prev => ({ ...prev, photo_url: url || '' }))}
           />
         </div>
-        {/* --- MODIFICATION END --- */}
-
+        
+        {/* Name */}
         <div>
-          <label htmlFor="name" className="block text-sm font-semibold text-gray-800 mb-2">Name *</label>
+          <label htmlFor="name" className="block text-lg font-semibold text-gray-800 mb-2">Name *</label>
           <input
-            type="text" id="name" name="name"
-            value={formData.name} onChange={handleChange}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-            placeholder="e.g., Spicy Pasta"
+            type="text"
+            id="name"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            className="w-full p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 transition-all"
           />
           {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
         </div>
+
+        {/* Description */}
         <div>
-          <label htmlFor="description" className="block text-sm font-semibold text-gray-800 mb-2">Description *</label>
+          <label htmlFor="description" className="block text-lg font-semibold text-gray-800 mb-2">Description *</label>
           <textarea
-            id="description" name="description"
-            value={formData.description} onChange={handleChange}
+            id="description"
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
             rows={4}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-            placeholder="Describe the menu item..."
+            className="w-full p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 transition-all"
           />
           {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
         </div>
-        <div>
-          <label htmlFor="price" className="block text-sm font-semibold text-gray-800 mb-2">Price ($) *</label>
-          <div className="relative">
-            <span className="absolute left-4 top-3 text-gray-700 font-medium">$</span>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Price */}
+          <div>
+            <label htmlFor="price" className="block text-lg font-semibold text-gray-800 mb-2">Price ($) *</label>
             <input
-              type="text" id="price" name="price"
-              value={formData.price} onChange={handleChange}
-              className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-              placeholder="0.00" inputMode="decimal"
+              type="text"
+              id="price"
+              name="price"
+              value={formData.price}
+              onChange={handleChange}
+              className="w-full p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 transition-all"
+              placeholder="0.00"
+              inputMode="decimal"
             />
+            {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price}</p>}
           </div>
-          {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price}</p>}
         </div>
+            
+        {/* Available Toggle */}
+        <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border-2 border-gray-200">
+          <label htmlFor="available" className="text-lg font-semibold text-gray-800">Item Available</label>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              id="available"
+              name="available"
+              checked={formData.available}
+              onChange={handleChange}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+          </label>
+        </div>
+
+        {/* Action Buttons */}
         <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-          <button type="button" onClick={onCancel} className="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-6 py-3 border-2 border-gray-300 rounded-xl font-semibold text-gray-700 hover:bg-gray-100 transition-all"
+          >
             Cancel
           </button>
-          <button type="submit" disabled={isSubmitting} className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold rounded-xl hover:from-indigo-600 hover:to-blue-600 disabled:opacity-50">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold rounded-xl hover:from-indigo-600 hover:to-blue-600 disabled:opacity-50 transition-all shadow-md hover:shadow-lg"
+          >
             {isSubmitting ? 'Saving...' : 'Save Item'}
           </button>
         </div>
