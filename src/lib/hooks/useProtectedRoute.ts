@@ -11,13 +11,14 @@ export const useProtectedRoute = () => {
     const checkAuth = async () => {
       const { session } = await getSession()
       if (!session) {
-        router.replace('/login') // redirect if not logged in
+        // CORRECTED: Redirect to the actual login page
+        router.replace('/signup/login') 
       } else {
         setLoading(false)
       }
     }
     checkAuth()
-  }, [])
+  }, [router]) // Added router to dependency array
 
   return { loading }
 }

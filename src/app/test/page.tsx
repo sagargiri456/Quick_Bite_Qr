@@ -1,4 +1,4 @@
-import  supabase  from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 
 export default async function TestPage() {
   const { data, error } = await supabase.from('restaurants').select('*').limit(1)

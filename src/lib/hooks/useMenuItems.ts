@@ -1,16 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { MenuItem } from '@/types/menu';
-// Import your new API functions
 import * as menuApi from '@/lib/api/menu';
 
 export function useMenuItems() {
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [menuItems, setMenuItems] = useState<menuApi.MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch data from the API layer when the component mounts
   const fetchMenuItems = useCallback(async () => {
     try {
       setLoading(true);
@@ -28,20 +25,24 @@ export function useMenuItems() {
     fetchMenuItems();
   }, [fetchMenuItems]);
 
-  // CREATE operation using the API
-  const addMenuItem = async (newItemData: Omit<MenuItem, 'id'>) => {
+  /**
+   * Adds a new menu item for a specific restaurant.
+   * @param newItemData The data from the form (name, price, etc.).
+   * @param restaurantId The UUID of the restaurant this item belongs to.
+   */
+  const addMenuItem = async (newItemData: Omit<menuApi.NewMenuItem, 'restaurant_id'>, restaurantId: string) => {
     try {
-      const newItem = await menuApi.addMenuItem(newItemData);
+      // Combine the form data with the restaurant ID to create a complete object
+      const completeItemData = { ...newItemData, restaurant_id: restaurantId };
+      const newItem = await menuApi.addMenuItem(completeItemData);
       setMenuItems(prev => [...prev, newItem]);
     } catch (err) {
       console.error("Failed to add item:", err);
-      // Re-throw the error so the form can catch it and handle the UI
-      throw err;
+      throw err; // Re-throw the error for the page to handle
     }
   };
 
-  // UPDATE operation using the API
-  const updateMenuItem = async (id: number, updatedItemData: Partial<MenuItem>) => {
+  const updateMenuItem = async (id: number, updatedItemData: Partial<menuApi.MenuItem>) => {
     try {
       const updatedItem = await menuApi.updateMenuItem(id, updatedItemData);
       setMenuItems(prev => prev.map(item => (item.id === id ? updatedItem : item)));
@@ -51,7 +52,6 @@ export function useMenuItems() {
     }
   };
 
-  // DELETE operation using the API
   const deleteMenuItem = async (id: number) => {
     try {
       await menuApi.deleteMenuItem(id);

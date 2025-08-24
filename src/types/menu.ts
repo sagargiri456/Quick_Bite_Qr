@@ -1,5 +1,3 @@
-// src/types/menu.ts (example)
-
 export type MenuCategory = 'starters' | 'mains' | 'desserts' | 'drinks';
 
 export interface MenuItem {
@@ -8,6 +6,7 @@ export interface MenuItem {
   description: string;
   price: number;
   category: MenuCategory;
-  popular: boolean;
-  imageUrl?: string; // Add this field, make it optional
+  photo_url?: string;
+  // ADDED: Make sure this property exists
+  available: boolean; 
 }
