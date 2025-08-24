@@ -1,5 +1,5 @@
 'use client'
-import  supabase  from '@/lib/supabase/client';
+import  {supabase}  from '@/lib/supabase/client';
 import React, { useEffect, useState } from 'react';
 import {Skeleton} from '@/components/ui/skeleton'
 
@@ -58,47 +58,47 @@ export default function RestaurantProfilePage() {
       }
       console.log(user)
       //getting the details of the restaurant using the user_id fetched above.
-const { data, error } = await supabase
-  .from('restaurants') 
-  .select('*')
-  .eq('user_id', user.id)
-  .single();
-      if(error){
-        console.log('error in fetching the restaurants data')
-      }else{
-        setRestaurant(data);
-        setLoading(false);
-        console.log(data);
+  const { data, error } = await supabase
+    .from('restaurants') 
+    .select('*')
+    .eq('user_id', user.id)
+    .single();
+        if(error){
+          console.log('error in fetching the restaurants data')
+        }else{
+          setRestaurant(data);
+          setLoading(false);
+          console.log(data);
+        }
       }
+      fetchRestaurant()
+    },[])  
+    console.log("after useEffect")
+    //if loading we have a shadcn component which we will show while loadin is going on...
+    if(loading) return <Skeleton className="h-32 w-full" />
+    if (!restaurant) return <p className="text-muted">No restaurant profile found.</p>
+
+
+    //
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleUpdate = async () => {
+    const { error } = await supabase
+      .from("restaurants")
+      .update(formData)
+      .eq("id", restaurant.id);
+
+    if (error) {
+      console.error("Update failed:", error.message);
+    } else {
+      alert("Restaurant updated successfully!");
+      setEditingField(null);
+      setRestaurant(formData); // optional: update local state
     }
-    fetchRestaurant()
-  },[])  
-  console.log("after useEffect")
-  //if loading we have a shadcn component which we will show while loadin is going on...
-  if(loading) return <Skeleton className="h-32 w-full" />
-  if (!restaurant) return <p className="text-muted">No restaurant profile found.</p>
-
-
-  //
-
-const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const { name, value } = e.target;
-  setFormData((prev) => ({ ...prev, [name]: value }));
-};
-
-const handleUpdate = async () => {
-  const { error } = await supabase
-    .from("restaurants")
-    .update(formData)
-    .eq("id", restaurant.id);
-
-  if (error) {
-    console.error("Update failed:", error.message);
-  } else {
-    alert("Restaurant updated successfully!");
-    setEditingField(null);
-    setRestaurant(formData); // optional: update local state
-  }
 };
 
 

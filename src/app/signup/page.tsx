@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import supabase from '@/lib/supabase/client'
+import {supabase} from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 // Zod schema for validation
