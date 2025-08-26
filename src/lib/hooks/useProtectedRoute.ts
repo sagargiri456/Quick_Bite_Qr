@@ -12,7 +12,7 @@ export const useProtectedRoute = () => {
       const { session } = await getSession()
       if (!session) {
         // CORRECTED: Redirect to the actual login page
-        router.replace('/signup/login') 
+        router.replace('/login') 
       } else {
         setLoading(false)
       }

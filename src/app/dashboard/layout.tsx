@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, UtensilsCrossed, SquareKanban, LogOut } from 'lucide-react';
+import { Home, UtensilsCrossed,Salad , SquareKanban, LogOut } from 'lucide-react';
 import { logout } from '@/lib/auth/logout'; // 1. Import your actual logout function
 
 export default function DashboardLayout({
@@ -23,6 +23,7 @@ export default function DashboardLayout({
     { href: '/dashboard', label: 'Home', icon: Home },
     { href: '/dashboard/menu', label: 'Menu', icon: UtensilsCrossed },
     { href: '/dashboard/tables', label: 'Tables', icon: SquareKanban },
+    { href: '/dashboard/orders', label: 'Orders', icon: Salad}
   ];
 
   return (
