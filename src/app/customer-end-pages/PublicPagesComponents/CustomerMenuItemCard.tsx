@@ -3,7 +3,8 @@
 import Image from 'next/image';
 import { MenuItem } from '@/types/menu';
 import { Plus } from 'lucide-react';
-import { useCartStore } from '@/app/customer-end-pages/store/cartStore';
+// CORRECTED: Import from the new co-located path
+import { useCartStore } from '../store/cartStore'; 
 
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('en-US', {

@@ -52,7 +52,7 @@ export default function SignUpPage() {
             <div className="text-center py-12">
               <h2 className="text-2xl font-semibold text-green-600">Registration Successful!</h2>
               <p className="mt-2 text-gray-700">Please check your email to confirm your account before logging in.</p>
-              <Link href="/signup/login" className="mt-6 inline-block bg-indigo-600 text-white font-semibold px-6 py-3 rounded-lg">
+              <Link href="/login" className="mt-6 inline-block bg-indigo-600 text-white font-semibold px-6 py-3 rounded-lg">
                 Go to Login
               </Link>
             </div>
@@ -77,7 +77,7 @@ export default function SignUpPage() {
               </button>
               <p className="text-center text-gray-600">
                 Already have an account?{' '}
-                <Link href="/signup/login" className="font-semibold text-indigo-600 hover:underline">
+                <Link href="/login" className="font-semibold text-indigo-600 hover:underline">
                   Log In
                 </Link>
               </p>

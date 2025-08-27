@@ -26,12 +26,13 @@ export function useTables() {
 
   // This function now calls your Edge Function to create the table and QR code
   const addTable = async (name: string, restaurantId: string) => {
-    const { data: newTable, error } = await supabase.functions.invoke('generate-qr', {
+    // CORRECTED: The function name is 'generate-table-qr'
+    const { data: newTable, error } = await supabase.functions.invoke('generate-table-qr', {
       body: { restaurantId, tableNumber: name },
     });
 
     if (error) {
-      console.error("Error calling generate-qr Edge Function:", error);
+      console.error("Error calling generate-table-qr Edge Function:", error);
       throw error;
     }
 

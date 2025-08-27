@@ -4,37 +4,37 @@ export interface Table {
   id: number;
   table_number: string;
   qr_code_url: string;
-  restaurant_id: string; // Added this property
+  restaurant_id: string;
 }
 
 export type NewTableData = {
   table_number: string;
   qr_code_url: string;
-  restaurant_id: string; // Added this property
+  restaurant_id: string;
 };
 
-// READ all tables (This will now be filtered by RLS policies)
+// ADD 'export' HERE
 export const getTables = async (): Promise<Table[]> => {
   const { data, error } = await supabase.from('tables').select('*').order('id');
   if (error) throw new Error(error.message);
   return data || [];
 };
 
-// CREATE a new table
+// ADD 'export' HERE
 export const addTable = async (tableData: NewTableData): Promise<Table> => {
   const { data, error } = await supabase.from('tables').insert([tableData]).select().single();
   if (error) throw new Error(error.message);
   return data;
 };
 
-// UPDATE a table
+// ADD 'export' HERE
 export const updateTable = async (id: number, updates: Partial<Table>): Promise<Table> => {
   const { data, error } = await supabase.from('tables').update(updates).eq('id', id).select().single();
   if (error) throw new Error(error.message);
   return data;
 };
 
-// DELETE a table
+// ADD 'export' HERE
 export const deleteTable = async (id: number): Promise<void> => {
   const { error } = await supabase.from('tables').delete().eq('id', id);
   if (error) throw new Error(error.message);

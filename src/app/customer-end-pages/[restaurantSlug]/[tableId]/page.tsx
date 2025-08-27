@@ -2,34 +2,59 @@
 
 import { useState, useEffect } from 'react';
 import { getPublicMenuItems, getRestaurantDetails } from '@/lib/api/public';
-import CustomerMenuItemCard from '../PublicPagesComponents/CustomerMenuItemCard';
-import Cart from '../PublicPagesComponents/Cart';
-import { useCartStore } from '../store/cartStore';
-import { MenuItem, MenuCategory } from '@/types/menu';
+import CustomerMenuItemCard from '@/app/customer-end-pages/PublicPagesComponents/CustomerMenuItemCard';
+import Cart from '@/app/customer-end-pages/PublicPagesComponents/Cart';
+import { useCartStore } from '@/app/customer-end-pages/store/cartStore';
+import { MenuItem as BaseMenuItem, MenuCategory } from '@/types/menu';
 import { ShoppingCart, Search, Loader2 } from 'lucide-react';
 
-export default function CustomerMenuPage({ params }: { params: { restaurantId: string } }) {
+// Define a type for the restaurant details we expect to fetch
+interface RestaurantDetails {
+  id: string;
+  restaurant_name: string;
+}
+
+// Define a local MenuItem type that includes the 'category' property used for grouping
+interface MenuItem extends BaseMenuItem {
+    category?: MenuCategory;
+}
+
+export default function CustomerMenuPage({ params }: { params: { restaurantSlug: string, tableId: string } }) {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [restaurantName, setRestaurantName] = useState('Menu');
+  const [restaurantDetails, setRestaurantDetails] = useState<RestaurantDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { totalItems } = useCartStore();
 
   useEffect(() => {
+    // FIX: Access params properties only inside the useEffect hook to avoid the warning.
+    const { restaurantSlug } = params;
+
     const fetchData = async () => {
+      if (!restaurantSlug) return; // Guard against running with no slug
+
       setIsLoading(true);
-      const [items, details] = await Promise.all([
-        getPublicMenuItems(params.restaurantId),
-        getRestaurantDetails(params.restaurantId)
-      ]);
-      setMenuItems(items);
-      if (details) {
-        setRestaurantName(details.restaurant_name);
+      try {
+        const [items, details] = await Promise.all([
+          getPublicMenuItems(restaurantSlug),
+          getRestaurantDetails(restaurantSlug)
+        ]);
+        
+        setMenuItems(items || []); // Ensure menuItems is always an array
+
+        if (details) {
+          setRestaurantDetails(details);
+        }
+      } catch (error) {
+        console.error("Failed to fetch menu data:", error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
+
     fetchData();
-  }, [params.restaurantId]);
+  // FIX: The dependency should be the entire params object.
+  }, [params]);
 
   const groupedMenu = menuItems.reduce((acc, item) => {
     const category = item.category || 'mains';
@@ -38,7 +63,8 @@ export default function CustomerMenuPage({ params }: { params: { restaurantId: s
     }
     acc[category].push(item);
     return acc;
-  }, {} as Record<MenuCategory, typeof menuItems>);
+  }, {} as Record<MenuCategory, MenuItem[]>);
+
 
   const categoryOrder: MenuCategory[] = ['starters', 'mains', 'desserts', 'drinks'];
 
@@ -55,7 +81,9 @@ export default function CustomerMenuPage({ params }: { params: { restaurantId: s
       <div className="max-w-7xl mx-auto pb-12">
         <header className="sticky top-0 bg-white/80 backdrop-blur-md z-10 p-4 shadow-sm">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{restaurantName}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              {restaurantDetails ? restaurantDetails.restaurant_name : 'Menu'}
+            </h1>
             <button onClick={() => setIsCartOpen(true)} className="relative bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700">
               <ShoppingCart size={20} />
               {totalItems() > 0 && (
@@ -76,14 +104,14 @@ export default function CustomerMenuPage({ params }: { params: { restaurantId: s
         </header>
 
         <main className="p-4">
-          {menuItems.length === 0 ? (
+          {!restaurantDetails || menuItems.length === 0 ? (
             <div className="text-center mt-20">
               <p className="text-xl text-gray-600">This restaurant's menu is not available right now.</p>
             </div>
           ) : (
             <div className="space-y-12">
               {categoryOrder.map(category => (
-                groupedMenu[category] && (
+                groupedMenu[category] && groupedMenu[category].length > 0 && (
                   <section key={category}>
                     <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 capitalize mb-6">{category}</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -98,7 +126,15 @@ export default function CustomerMenuPage({ params }: { params: { restaurantId: s
           )}
         </main>
       </div>
-      <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      
+      {restaurantDetails && (
+        <Cart 
+          isOpen={isCartOpen} 
+          onClose={() => setIsCartOpen(false)} 
+          restaurantId={restaurantDetails.id}
+          tableId={params.tableId}
+        />
+      )}
     </div>
   );
 }

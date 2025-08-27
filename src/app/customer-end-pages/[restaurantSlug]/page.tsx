@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { getPublicMenuItems, getRestaurantDetails } from '@/lib/api/public';
-import CustomerMenuItemCard from '../../PublicPagesComponents/CustomerMenuItemCard';
-import Cart from '../../PublicPagesComponents/Cart';
-import { useCartStore } from '../../store/cartStore';
+// CORRECTED: Import from the new co-located path
+import CustomerMenuItemCard from '../PublicPagesComponents/CustomerMenuItemCard';
+import Cart from '../PublicPagesComponents/Cart';
+import { useCartStore } from '../store/cartStore';
 import { MenuItem, MenuCategory } from '@/types/menu';
 import { ShoppingCart, Search, Loader2 } from 'lucide-react';
 
-// The page now receives both IDs in its params
-export default function CustomerMenuPage({ params }: { params: { restaurantId: string, tableId: string } }) {
+export default function CustomerMenuPage({ params }: { params: { restaurantId: string } }) {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [restaurantName, setRestaurantName] = useState('Menu');
   const [isLoading, setIsLoading] = useState(true);
@@ -99,13 +99,7 @@ export default function CustomerMenuPage({ params }: { params: { restaurantId: s
           )}
         </main>
       </div>
-      {/* Pass both IDs to the Cart component */}
-      <Cart 
-        isOpen={isCartOpen} 
-        onClose={() => setIsCartOpen(false)} 
-        restaurantId={params.restaurantId}
-        tableId={params.tableId}
-      />
+      <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>
   );
 }

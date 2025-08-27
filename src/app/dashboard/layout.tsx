@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, UtensilsCrossed,Salad , SquareKanban, LogOut } from 'lucide-react';
-import { logout } from '@/lib/auth/logout'; // 1. Import your actual logout function
+import { Home, UtensilsCrossed, SquareKanban, LogOut } from 'lucide-react';
+import { logout } from '@/lib/auth/logout';
 
 export default function DashboardLayout({
   children,
@@ -13,17 +13,15 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
 
-  // 2. This function now uses your real logout logic
   const handleLogout = async () => {
     await logout();
-    router.push('/signup/login'); // Redirect to your login page
+    router.push('/signup/login');
   };
 
   const navItems = [
     { href: '/dashboard', label: 'Home', icon: Home },
     { href: '/dashboard/menu', label: 'Menu', icon: UtensilsCrossed },
     { href: '/dashboard/tables', label: 'Tables', icon: SquareKanban },
-    { href: '/dashboard/orders', label: 'Orders', icon: Salad}
   ];
 
   return (
@@ -49,7 +47,6 @@ export default function DashboardLayout({
             </Link>
           ))}
         </nav>
-        {/* 3. The button is at the bottom of the sidebar */}
         <div className="p-4 border-t">
           <button
             onClick={handleLogout}
@@ -61,7 +58,7 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <main className="flex-1 p-8 overflow-auto">
         {children}
       </main>

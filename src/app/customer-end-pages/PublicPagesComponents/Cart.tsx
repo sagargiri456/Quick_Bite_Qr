@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+// Corrected import path for your co-located store
 import { useCartStore } from '@/app/customer-end-pages/store/cartStore';
 import CartItem from './CartItem';
 import { X, ShoppingCart, Loader2 } from 'lucide-react';
-import { submitOrder } from '@/lib/api/orders';
+import { submitOrder } from '@/lib/api/orders'; // Import the new function
 
 interface CartProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId }: CartPro
   const handlePlaceOrder = async () => {
     setIsPlacingOrder(true);
     try {
+      // This now calls your backend function to save the order
       await submitOrder(items, restaurantId, tableId, totalPrice());
       setOrderSuccess(true);
       clearCart();
@@ -35,6 +37,7 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId }: CartPro
   
   const handleClose = () => {
     onClose();
+    // Reset the success message after a short delay to allow the closing animation to finish
     setTimeout(() => {
         setOrderSuccess(false);
     }, 300);
@@ -61,6 +64,7 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId }: CartPro
             </button>
           </div>
 
+          {/* Conditionally render success message or cart items */}
           {orderSuccess ? (
              <div className="flex flex-col items-center justify-center h-full text-center text-gray-700 p-6">
                 <h3 className="text-2xl font-bold text-green-600">Order Placed!</h3>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMenuItems } from '@/lib/hooks/useMenuItems';
-// import { useTables } from '@/lib/hooks/useTables';
+import { useTables } from '@/lib/hooks/useTables';
 import { useProtectedRoute } from '@/lib/hooks/useProtectedRoute';
 import { UtensilsCrossed, SquareKanban, Loader2 } from 'lucide-react';
 
@@ -24,7 +24,7 @@ const StatCard = ({ title, value, icon: Icon, loading }: { title: string, value:
 export default function DashboardHomePage() {
   const { loading: authLoading } = useProtectedRoute();
   const { menuItems, loading: menuLoading } = useMenuItems();
-  // const { tables, loading: tablesLoading } = useTables();
+  const { tables, loading: tablesLoading } = useTables();
 
   // You would fetch the real restaurant name after setting up user profiles
   const restaurantName = "Your Restaurant"; 
@@ -51,12 +51,12 @@ export default function DashboardHomePage() {
           icon={UtensilsCrossed} 
           loading={menuLoading} 
         />
-        {/*<StatCard 
+        <StatCard 
           title="Total Tables" 
           value={tables.length} 
           icon={SquareKanban} 
           loading={tablesLoading} 
-        />*/}
+        />
       </div>
     </div>
   );
