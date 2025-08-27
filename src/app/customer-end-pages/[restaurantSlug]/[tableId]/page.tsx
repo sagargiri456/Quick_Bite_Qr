@@ -97,7 +97,7 @@ export default function CustomerMenuPage() {
             >
               <ShoppingCart size={20} />
               {totalItems() > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-bounce">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5  flex items-center justify-center animate-bounce">
                   {totalItems()}
                 </span>
               )}
@@ -135,7 +135,7 @@ export default function CustomerMenuPage() {
                   groupedMenu[category] &&
                   groupedMenu[category].length > 0 && (
                     <section key={category}>
-                      <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 capitalize mb-6">
+                      <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 capitalize mb-6 ">
                         {category}
                       </h2>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
