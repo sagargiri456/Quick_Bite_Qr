@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,22 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table as TableIcon, Clock, Users, TrendingUp, Search, Plus, Edit, Eye, Calendar, DollarSign } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
+import { supabase } from "@/lib/supabase/client";
 
-// Sample table data with more realistic information
-const tables = [
-  { id: "A1", capacity: 2, status: "Occupied", currentParty: 2, startTime: "6:30 PM", estimatedEnd: "8:00 PM", turnover: 45, revenue: 89.50, server: "Sarah", section: "Patio" },
-  { id: "A2", capacity: 4, status: "Available", currentParty: 0, startTime: "", estimatedEnd: "", turnover: 0, revenue: 0, server: "", section: "Patio" },
-  { id: "A3", capacity: 6, status: "Reserved", currentParty: 0, startTime: "7:00 PM", estimatedEnd: "9:00 PM", turnover: 0, revenue: 0, server: "Mike", section: "Patio" },
-  { id: "A4", capacity: 4, status: "Occupied", currentParty: 3, startTime: "6:15 PM", estimatedEnd: "7:45 PM", turnover: 38, revenue: 67.25, server: "Lisa", section: "Patio" },
-  { id: "B1", capacity: 8, status: "Occupied", currentParty: 7, startTime: "6:00 PM", estimatedEnd: "8:30 PM", turnover: 52, revenue: 156.80, server: "Tom", section: "Main Dining" },
-  { id: "B2", capacity: 4, status: "Available", currentParty: 0, startTime: "", estimatedEnd: "", turnover: 0, revenue: 0, server: "", section: "Main Dining" },
-  { id: "B3", capacity: 6, status: "Occupied", currentParty: 5, startTime: "6:45 PM", estimatedEnd: "8:15 PM", turnover: 42, revenue: 98.75, server: "Anna", section: "Main Dining" },
-  { id: "C1", capacity: 10, status: "Reserved", currentParty: 0, startTime: "7:30 PM", estimatedEnd: "10:00 PM", turnover: 0, revenue: 0, server: "David", section: "Private Room" },
-  { id: "C2", capacity: 4, status: "Occupied", currentParty: 4, startTime: "6:20 PM", estimatedEnd: "7:50 PM", turnover: 41, revenue: 73.45, server: "Emma", section: "Main Dining" },
-  { id: "C3", capacity: 6, status: "Available", currentParty: 0, startTime: "", estimatedEnd: "", turnover: 0, revenue: 0, server: "", section: "Main Dining" },
-  { id: "D1", capacity: 12, status: "Occupied", currentParty: 10, startTime: "5:45 PM", estimatedEnd: "8:15 PM", turnover: 58, revenue: 234.90, server: "James", section: "Private Room" },
-  { id: "D2", capacity: 4, status: "Cleaning", currentParty: 0, startTime: "", estimatedEnd: "", turnover: 0, revenue: 0, server: "", section: "Main Dining" },
-];
+type Table = {
+  table_number: number;
+  qr_code_url: string;
+  created_at: string;
+};
+
 
 // Enhanced chart data
 const occupancyData = [
@@ -65,10 +57,35 @@ const sectionColors = {
 };
 
 export default function TablePage() {
+  const [tables, setTables] = useState<Table[]>([]);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [capacityFilter, setCapacityFilter] = useState("All");
   const [sectionFilter, setSectionFilter] = useState("All");
+
+
+  useEffect(() => {
+    const fetchTables = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("tables")
+        .select("*")
+        .order("created_at", { ascending: false });
+        console.log(data);
+
+      if (error) {
+        console.error("Error fetching tables:", error);
+      } else {
+        console.log("Fetched tables:", data);
+        setTables(data || []);
+      }
+      setLoading(false);
+    };
+
+    fetchTables();
+  }, []);
+
 
   // Filter tables based on search and filters
   const filteredTables = useMemo(() => {

@@ -1,59 +1,78 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { RecentOrders } from "@/components/RecentOrders";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bell, Clock, Users, DollarSign, TrendingUp } from "lucide-react";
+import { Bell, X } from "lucide-react";
 
 interface Props {
   dateRange?: any;
 }
 
-// Simulated live order data
-const generateLiveOrder = () => {
-  const customers = ["John Smith", "Sarah Johnson", "Mike Davis", "Emma Wilson", "David Brown", "Lisa Garcia"];
-  const items = [
-    "Grilled Salmon", "Beef Burger", "Caesar Salad", "Chicken Alfredo", "Margherita Pizza", "Pasta Carbonara"
-  ];
-  const statuses = ["Preparing", "Ready", "Served"];
-  
-  return {
-    id: Math.floor(Math.random() * 10000),
-    customer: customers[Math.floor(Math.random() * customers.length)],
-    items: [items[Math.floor(Math.random() * items.length)]],
-    status: statuses[Math.floor(Math.random() * statuses.length)],
-    amount: Math.floor(Math.random() * 50) + 15,
-    time: new Date().toLocaleTimeString(),
-    table: `A${Math.floor(Math.random() * 5) + 1}`,
-    priority: Math.random() > 0.7 ? "High" : "Normal"
-  };
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+type Order = {
+  id: string;                 // uuid
+  table_id: number | string;
+  status: "Preparing" | "Ready" | "Served" | string;
+  total_amount: number | string;
+  created_at: string;
+  estimated_time: number | string | null;
+};
+
+type OrderItem = {
+  id: string;                 // uuid
+  order_id: string;           // FK → orders.id
+  quantity: number;
+  price: number | string;     // numeric comes back as string from PG
+  created_at: string;
+  menu_item: number;          // refers to a menu_items.id (int8)
 };
 
 export function LiveOrdersPanel({ dateRange }: Props) {
-  const [liveOrders, setLiveOrders] = useState<any[]>([]);
+  const [liveOrders, setLiveOrders] = useState<Order[]>([]);
   const [newOrderCount, setNewOrderCount] = useState(0);
   const [isPulsing, setIsPulsing] = useState(false);
 
+  // which order card is open (overlay)
+  const [openOrderId, setOpenOrderId] = useState<string | null>(null);
+
   useEffect(() => {
-    // Initialize with some orders
-    const initialOrders = Array.from({ length: 5 }, () => generateLiveOrder());
-    setLiveOrders(initialOrders);
+    async function fetchOrders() {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, table_id, status, total_amount, created_at, estimated_time")
+        .order("created_at", { ascending: false })
+        .limit(12);
 
-    // Simulate new orders coming in
-    const interval = setInterval(() => {
-      if (Math.random() > 0.6) { // 40% chance of new order
-        const newOrder = generateLiveOrder();
-        setLiveOrders(prev => [newOrder, ...prev.slice(0, 9)]); // Keep max 10 orders
-        setNewOrderCount(prev => prev + 1);
-        setIsPulsing(true);
-        
-        // Stop pulsing after 3 seconds
-        setTimeout(() => setIsPulsing(false), 3000);
-      }
-    }, 5000); // Check every 5 seconds
+      if (!error && data) setLiveOrders(data as Order[]);
+    }
 
-    return () => clearInterval(interval);
+    fetchOrders();
+
+    // realtime: new orders
+    const ch = supabase
+      .channel("orders-insert")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "orders" },
+        (payload) => {
+          setLiveOrders((prev) => [payload.new as Order, ...prev].slice(0, 12));
+          setNewOrderCount((c) => c + 1);
+          setIsPulsing(true);
+          setTimeout(() => setIsPulsing(false), 3000);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, []);
 
   const getStatusColor = (status: string) => {
@@ -65,18 +84,21 @@ export function LiveOrdersPanel({ dateRange }: Props) {
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    return priority === "High" ? "bg-red-100 text-red-800 border-red-200" : "bg-gray-100 text-gray-800 border-gray-200";
-  };
+  // compute header stats safely (numeric may be string)
+  const totals = useMemo(() => {
+    const totalValue = liveOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
+    const readyCount = liveOrders.filter((o) => o.status === "completed").length;
+    return { totalValue, readyCount };
+  }, [liveOrders]);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       {/* Live Orders Header with Stats */}
       <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 animate-slide-up">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-full bg-blue-600 text-white transition-all duration-300 ${isPulsing ? 'animate-pulse animate-glow' : ''}`}>
+              <div className={`p-2 rounded-full bg-blue-600 text-white transition-all duration-300 ${isPulsing ? "animate-pulse animate-glow" : ""}`}>
                 <Bell className="w-5 h-5" />
               </div>
               <div>
@@ -90,15 +112,11 @@ export function LiveOrdersPanel({ dateRange }: Props) {
                 <div className="text-xs text-slate-600">Active Orders</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  {liveOrders.filter(o => o.status === "Ready").length}
-                </div>
+                <div className="text-2xl font-bold text-green-600">{totals.readyCount}</div>
                 <div className="text-xs text-slate-600">Ready to Serve</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">
-                  ${liveOrders.reduce((sum, o) => sum + o.amount, 0).toFixed(2)}
-                </div>
+                <div className="text-2xl font-bold text-purple-600">${totals.totalValue.toFixed(2)}</div>
                 <div className="text-xs text-slate-600">Total Value</div>
               </div>
             </div>
@@ -109,64 +127,55 @@ export function LiveOrdersPanel({ dateRange }: Props) {
       {/* Live Orders Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {liveOrders.map((order, index) => (
-          <Card 
-            key={order.id} 
-            className={`hover:shadow-lg transition-all duration-300 animate-slide-up ${
-              index === 0 && newOrderCount > 0 ? 'animate-pulse border-blue-300 animate-glow' : ''
+          <Card
+            key={order.id}
+            onClick={() => setOpenOrderId(order.id)}
+            className={`relative cursor-pointer hover:shadow-lg transition-all duration-300 animate-slide-up ${
+              index === 0 && newOrderCount > 0 ? "animate-pulse border-blue-300 animate-glow" : ""
             }`}
             style={{ animationDelay: `${index * 100}ms` }}
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                   <span className="text-sm font-medium text-slate-600">#{order.id}</span>
                 </div>
-                <div className="flex gap-1">
-                  <Badge variant="outline" className={getStatusColor(order.status)}>
-                    {order.status}
-                  </Badge>
-                  <Badge variant="outline" className={getPriorityColor(order.priority)}>
-                    {order.priority}
-                  </Badge>
-                </div>
+                <Badge variant="outline" className={getStatusColor(order.status)}>{order.status}</Badge>
               </div>
             </CardHeader>
+
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-slate-600 text-sm">Customer:</span>
-                <span className="font-medium">{order.customer}</span>
-              </div>
-              <div className="flex items-center justify-between">
                 <span className="text-slate-600 text-sm">Table:</span>
-                <span className="font-medium">{order.table}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600 text-sm">Items:</span>
-                <span className="font-medium">{order.items.join(", ")}</span>
+                <span className="font-medium">{order.table_id}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 text-sm">Amount:</span>
-                <span className="font-medium text-green-600">${order.amount}</span>
+                <span className="font-medium text-green-600">${Number(order.total_amount).toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 text-sm">Time:</span>
-                <span className="font-medium text-blue-600">{order.time}</span>
+                <span className="font-medium text-blue-600">{new Date(order.created_at).toLocaleTimeString()}</span>
               </div>
-              
-              {/* Progress Bar for Preparing Orders */}
-              {order.status === "Preparing" && (
-                <div className="mt-3">
-                  <div className="flex justify-between text-xs text-slate-600 mb-1">
-                    <span>Progress</span>
-                    <span>75%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                    <div className="bg-yellow-500 h-2 rounded-full animate-pulse transition-all duration-1000" style={{ width: '75%' }}></div>
-                  </div>
+              {order.estimated_time && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600 text-sm">ETA:</span>
+                  <span className="font-medium text-purple-600">{order.estimated_time}</span>
                 </div>
               )}
             </CardContent>
+
+            {/* Overlay with order_items (only for the clicked card) */}
+            {openOrderId === order.id && (
+              <OrderItemsOverlay
+                orderId={order.id}
+                onClose={(e) => {
+                  e.stopPropagation();
+                  setOpenOrderId(null);
+                }}
+              />
+            )}
           </Card>
         ))}
       </div>
@@ -184,4 +193,108 @@ export function LiveOrdersPanel({ dateRange }: Props) {
   );
 }
 
+/* ---------- Overlay Component (fetches order_items by FK) ---------- */
 
+function OrderItemsOverlay({
+  orderId,
+  onClose,
+}: {
+  orderId: string;
+  onClose: (e: React.MouseEvent) => void;
+}) {
+  const [items, setItems] = useState<OrderItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchItems() {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("order_items")
+        .select("id, order_id, quantity, price, created_at, menu_item")
+        .eq("order_id", orderId)
+        .order("created_at", { ascending: true });
+
+      if (!error && mounted) setItems((data || []) as OrderItem[]);
+      setLoading(false);
+    }
+
+    fetchItems();
+
+    // realtime inserts for this order_id
+    const channel = supabase
+      .channel(`order-items-${orderId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "order_items", filter: `order_id=eq.${orderId}` },
+        (payload) => setItems((prev) => [...prev, payload.new as OrderItem])
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [orderId]);
+
+  const orderTotal = items.reduce(
+    (s, i) => s + Number(i.price || 0) * Number(i.quantity || 0),
+    0
+  );
+
+  return (
+    <div
+      className="absolute inset-0 z-30 rounded-2xl bg-blue-200/95 backdrop-blur-md border border-slate-200 shadow-2xl p-4"
+      onClick={(e) => e.stopPropagation()} // don't close when clicking inside
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="text-base font-semibold text-slate-800">Items for Order #{orderId}</h3>
+          <p className="text-xs text-slate-500">Live updates</p>
+        </div>
+        <button
+          aria-label="Close"
+          onClick={onClose}
+          className="rounded-full p-1 hover:bg-slate-100"
+        >
+          <X className="w-5 h-5 text-slate-600" />
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="text-sm text-slate-500">Loading items…</div>
+      ) : items.length === 0 ? (
+        <div className="text-sm text-slate-500">No items yet for this order.</div>
+      ) : (
+        <div className="max-h-60 overflow-auto space-y-2 pr-1">
+          {items.map((it) => {
+            const lineTotal = Number(it.price) * Number(it.quantity);
+            return (
+              <div
+                key={it.id}
+                className="flex items-center justify-between rounded-lg border border-slate-200 p-2"
+              >
+                <div className="text-sm">
+                  <div className="font-medium">
+                    {/* If you have a relation to menu_items, replace with the name */}
+                    Item #{it.menu_item}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Qty: {it.quantity} • ₹{Number(it.price).toFixed(2)} each
+                  </div>
+                </div>
+                <div className="text-sm font-semibold">₹{lineTotal.toFixed(2)}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center justify-between border-t pt-3">
+        <span className="text-sm text-slate-600">Items Total</span>
+        <span className="text-base font-bold">₹{orderTotal.toFixed(2)}</span>
+      </div>
+    </div>
+  );
+}

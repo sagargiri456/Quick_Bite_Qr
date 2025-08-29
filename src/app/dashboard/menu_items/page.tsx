@@ -9,148 +9,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Soup, Plus, Edit, Eye, Search, TrendingUp, DollarSign, Clock, Star, Flame } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { useEffect } from "react";
+import { SupabaseClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase/client"; 
 
-// Sample menu items data with images
-const menuItems = [
-  {
-    id: "1",
-    name: "Grilled Salmon",
-    description: "Fresh Atlantic salmon with herbs and lemon butter sauce",
-    category: "Main Course",
-    subcategory: "Seafood",
-    price: 32.50,
-    cost: 18.75,
-    profit: 13.75,
-    status: "Active",
-    menu: "Dinner Menu",
-    chef: "Chef Michael",
-    preparationTime: 25,
-    calories: 420,
-    allergens: ["Fish"],
-    ingredients: ["Salmon", "Herbs", "Lemon", "Butter", "Olive Oil"],
-    popularity: 95,
-    rating: 4.8,
-    orders: 156,
-    seasonal: true,
-    dietary: ["Gluten-Free", "Low-Carb"],
-    image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop&auto=format"
-  },
-  {
-    id: "2",
-    name: "Truffle Pasta",
-    description: "House-made fettuccine with black truffle and parmesan",
-    category: "Main Course",
-    subcategory: "Pasta",
-    price: 28.00,
-    cost: 12.50,
-    profit: 15.50,
-    status: "Active",
-    menu: "Dinner Menu",
-    chef: "Chef Sarah",
-    preparationTime: 18,
-    calories: 580,
-    allergens: ["Gluten", "Dairy"],
-    ingredients: ["Fettuccine", "Truffle", "Parmesan", "Butter", "Herbs"],
-    popularity: 88,
-    rating: 4.6,
-    orders: 134,
-    seasonal: false,
-    dietary: ["Vegetarian"],
-    image: "https://images.unsplash.com/photo-1621996346565-e3dbc353d2e5?w=400&h=300&fit=crop&auto=format"
-  },
-  {
-    id: "3",
-    name: "Caesar Salad",
-    description: "Classic Caesar with romaine, parmesan, and house dressing",
-    category: "Appetizer",
-    subcategory: "Salad",
-    price: 16.50,
-    cost: 6.25,
-    profit: 10.25,
-    status: "Active",
-    menu: "Lunch Specials",
-    chef: "Chef Emma",
-    preparationTime: 12,
-    calories: 320,
-    allergens: ["Gluten", "Dairy", "Eggs"],
-    ingredients: ["Romaine", "Parmesan", "Croutons", "Caesar Dressing"],
-    popularity: 92,
-    rating: 4.5,
-    orders: 189,
-    seasonal: false,
-    dietary: ["Vegetarian"],
-    image: "/images/caesar-salad.jpg"
-  },
-  {
-    id: "4",
-    name: "Beef Tenderloin",
-    description: "8oz tenderloin with red wine reduction and vegetables",
-    category: "Main Course",
-    subcategory: "Beef",
-    price: 45.00,
-    cost: 22.50,
-    profit: 22.50,
-    status: "Active",
-    menu: "Dinner Menu",
-    chef: "Chef David",
-    preparationTime: 30,
-    calories: 650,
-    allergens: ["None"],
-    ingredients: ["Beef Tenderloin", "Red Wine", "Vegetables", "Herbs"],
-    popularity: 89,
-    rating: 4.7,
-    orders: 98,
-    seasonal: false,
-    dietary: ["Gluten-Free", "Low-Carb"],
-    image: "/images/beef-tenderloin.jpg"
-  },
-  {
-    id: "5",
-    name: "Chocolate Lava Cake",
-    description: "Warm chocolate cake with molten center and vanilla ice cream",
-    category: "Dessert",
-    subcategory: "Chocolate",
-    price: 14.50,
-    cost: 4.75,
-    profit: 9.75,
-    status: "Active",
-    menu: "Dinner Menu",
-    chef: "Chef Lisa",
-    preparationTime: 15,
-    calories: 480,
-    allergens: ["Gluten", "Dairy", "Eggs"],
-    ingredients: ["Chocolate", "Flour", "Eggs", "Butter", "Vanilla"],
-    popularity: 96,
-    rating: 4.9,
-    orders: 167,
-    seasonal: false,
-    dietary: ["Vegetarian"],
-    image: "/images/chocolate-lava-cake.jpg"
-  },
-  {
-    id: "6",
-    name: "Mushroom Risotto",
-    description: "Creamy risotto with wild mushrooms and truffle oil",
-    category: "Main Course",
-    subcategory: "Rice",
-    price: 26.00,
-    cost: 11.00,
-    profit: 15.00,
-    status: "Active",
-    menu: "Lunch Specials",
-    chef: "Chef Anna",
-    preparationTime: 22,
-    calories: 520,
-    allergens: ["Dairy"],
-    ingredients: ["Arborio Rice", "Mushrooms", "Parmesan", "Truffle Oil"],
-    popularity: 85,
-    rating: 4.4,
-    orders: 112,
-    seasonal: true,
-    dietary: ["Vegetarian", "Gluten-Free"],
-    image: "/images/mushroom-risotto.jpg"
-  }
-];
+
+type MenuItem = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  photo_url?: string;
+  available?: boolean;
+  created_at?: string;
+};
+
 
 // Chart data
 const itemPerformanceData = [
@@ -184,10 +58,33 @@ const dietaryColors = {
 };
 
 export default function MenuItemsPage() {
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState("All");
   const [priceRange, setPriceRange] = useState("All");
+
+
+  useEffect(() => {
+    const fetchMenuItems = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("menu_items")
+        .select("*")
+        .order("created_at", { ascending: false });
+        // console.log(data);
+
+      if (error) {
+        console.error("Error fetching menu items:", error);
+      } else {
+        setMenuItems(data || []);
+      }
+      setLoading(false);
+    };
+
+    fetchMenuItems();
+  }, []);
+
 
   // Filter menu items based on search and filters
   const filteredItems = useMemo(() => {
@@ -195,10 +92,9 @@ export default function MenuItemsPage() {
       const searchMatch = 
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.chef.toLowerCase().includes(searchTerm.toLowerCase());
+        
       
       const categoryMatch = categoryFilter === "All" || item.category === categoryFilter;
-      const statusMatch = statusFilter === "All" || item.status === statusFilter;
       
       let priceMatch = true;
       if (priceRange !== "All") {
@@ -206,13 +102,14 @@ export default function MenuItemsPage() {
         priceMatch = item.price >= min && item.price <= max;
       }
       
-      return searchMatch && categoryMatch && statusMatch && priceMatch;
+      return searchMatch && categoryMatch  && priceMatch;
     });
-  }, [searchTerm, categoryFilter, statusFilter, priceRange]);
+  }, [searchTerm, categoryFilter, priceRange]);
 
   // Calculate analytics
   const analytics = useMemo(() => {
     const totalItems = menuItems.length;
+    console.log(totalItems);
     const activeItems = menuItems.filter(i => i.status === "Active").length;
     const totalRevenue = menuItems.reduce((sum, i) => sum + (i.price * i.orders), 0);
     const totalProfit = menuItems.reduce((sum, i) => sum + (i.profit * i.orders), 0);
