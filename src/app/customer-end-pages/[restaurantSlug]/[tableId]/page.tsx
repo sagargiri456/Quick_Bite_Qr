@@ -67,7 +67,7 @@ export default function CustomerMenuPage() {
   );
 
   const groupedMenu = filteredItems.reduce((acc, item) => {
-    const category = item.category || 'mains';
+    const category = (item.category as MenuCategory) || 'mains';
     if (!acc[category]) acc[category] = [];
     acc[category].push(item);
     return acc;
@@ -138,7 +138,7 @@ export default function CustomerMenuPage() {
                       <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 capitalize mb-6 ">
                         {category}
                       </h2>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl-grid-cols-4 gap-6">
                         {groupedMenu[category].map((item) => (
                           <CustomerMenuItemCard key={item.id} item={item} />
                         ))}
@@ -152,12 +152,16 @@ export default function CustomerMenuPage() {
       </div>
 
       {restaurantDetails && (
-        <Cart
-          isOpen={isCartOpen}
-          onClose={() => setIsCartOpen(false)}
-          restaurantId={restaurantDetails.id}
-          tableId={tableId}
-        />
+        <>
+          {/* pass slug so Cart can redirect to /orders/[orderId] */}
+          <Cart
+            isOpen={isCartOpen}
+            onClose={() => setIsCartOpen(false)}
+            restaurantId={restaurantDetails.id}
+            tableId={String(tableId)}
+            restaurantSlug={String(restaurantSlug)}
+          />
+        </>
       )}
     </div>
   );

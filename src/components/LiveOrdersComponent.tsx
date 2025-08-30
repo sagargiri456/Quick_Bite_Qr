@@ -1,10 +1,14 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RefreshCw, Clock } from 'lucide-react';
+import { RefreshCw, Clock, ChefHat, CheckCircle, XCircle } from 'lucide-react';
+import Link from 'next/link';
 import { OrderItem, OrderItemStatus } from '@/app/dashboard/orders/LiveOrders';
+import { setOrderStatus } from '@/lib/api/orders';
 
 interface LiveOrdersComponentProps {
   fetchLiveOrders: () => Promise<void>;
@@ -13,11 +17,12 @@ interface LiveOrdersComponentProps {
   filteredOrders: OrderItem[] | null;
   activeStatus: OrderItemStatus | 'All';
   setActiveStatus: (status: OrderItemStatus | 'All') => void;
-  getStatusIcon: (status: OrderItemStatus | null) => React.ReactNode;
-  getStatusVariant: (status: OrderItemStatus | null) => 'default' | 'secondary' | 'destructive';
   formatDate: (dateString: string) => string;
   getTotalPrice: (orders: OrderItem[] | null) => number;
+  errorMsg?: string | null;
 }
+
+const ETA_PRESETS = [10, 15, 20, 25, 30];
 
 const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
   fetchLiveOrders,
@@ -26,110 +31,180 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
   filteredOrders,
   activeStatus,
   setActiveStatus,
-  getStatusIcon,
-  getStatusVariant,
   formatDate,
-  getTotalPrice
+  getTotalPrice,
+  errorMsg,
 }) => {
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [etaChoice, setEtaChoice] = useState<Record<string, number>>({});
+
+  const handleUpdate = async (orderId: string, status: OrderItemStatus, eta?: number | null) => {
+    try {
+      setUpdatingId(orderId);
+      await setOrderStatus(orderId, status as any, eta ?? null);
+      await fetchLiveOrders();
+    } catch (e: any) {
+      console.error('[update status]', e);
+      alert(e?.message || 'Failed to update status');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const getStatusIcon = (status: OrderItemStatus | null) => {
+    switch (status) {
+      case 'Pending': return <Clock className="h-4 w-4" />;
+      case 'Confirmed': return <CheckCircle className="h-4 w-4" />;
+      case 'Preparing': return <ChefHat className="h-4 w-4" />;
+      case 'Ready': return <CheckCircle className="h-4 w-4" />;
+      case 'Cancelled': return <XCircle className="h-4 w-4" />;
+      default: return <Clock className="h-4 w-4" />;
+    }
+  };
+
+  const getStatusVariant = (status: OrderItemStatus | null) => {
+    switch (status) {
+      case 'Cancelled': return 'destructive';
+      case 'Confirmed':
+      case 'Preparing':
+      case 'Ready': return 'default';
+      case 'Pending':
+      default: return 'secondary';
+    }
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+      <div className="flex justify-between items-center mb-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Live Orders</h1>
-          <p className="text-muted-foreground">Manage and track your active orders in real-time</p>
+          <h1 className="text-2xl font-bold">Live Orders</h1>
+          <p className="text-muted-foreground">Manage active orders in real-time</p>
         </div>
-        <Button
-          onClick={fetchLiveOrders}
-          disabled={refreshing}
-          variant="outline"
-          className="flex items-center gap-2"
-        >
+        <Button onClick={fetchLiveOrders} disabled={refreshing} variant="outline" className="flex items-center gap-2">
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{liveOrders?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">Active orders</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pending Orders</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {liveOrders?.filter(order => order.status === 'Pending').length || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">Awaiting confirmation</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${getTotalPrice(liveOrders).toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">From active orders</p>
-          </CardContent>
-        </Card>
+      {errorMsg && (
+        <div className="mb-4 rounded border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {errorMsg}
+        </div>
+      )}
+
+      {/* Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card><CardHeader><CardTitle>Total Orders</CardTitle></CardHeader><CardContent>{liveOrders?.length || 0}</CardContent></Card>
+        <Card><CardHeader><CardTitle>Pending</CardTitle></CardHeader><CardContent>{liveOrders?.filter(o=>o.status==='Pending').length || 0}</CardContent></Card>
+        <Card><CardHeader><CardTitle>Total Value</CardTitle></CardHeader><CardContent>${getTotalPrice(liveOrders).toFixed(2)}</CardContent></Card>
       </div>
 
-      {/* Status Tabs */}
-      <Tabs value={activeStatus} onValueChange={(value) => setActiveStatus(value as OrderItemStatus | 'All')}>
-        <TabsList className="grid w-full grid-cols-5 md:grid-cols-9 mb-6">
+      {/* Tabs */}
+      <Tabs value={activeStatus} onValueChange={(v)=>setActiveStatus(v as OrderItemStatus|'All')}>
+        <TabsList className="mb-4 grid grid-cols-5">
           <TabsTrigger value="All">All</TabsTrigger>
           <TabsTrigger value="Pending">Pending</TabsTrigger>
-          <TabsTrigger value="Confirm">Confirmed</TabsTrigger>
+          <TabsTrigger value="Confirmed">Confirmed</TabsTrigger>
           <TabsTrigger value="Preparing">Preparing</TabsTrigger>
           <TabsTrigger value="Ready">Ready</TabsTrigger>
         </TabsList>
 
-        <div className="mt-0">
+        <div>
           {filteredOrders && filteredOrders.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4">
-              {filteredOrders.map((order) => (
-                <Card key={order.id} className="overflow-hidden">
-                  <CardHeader className="bg-muted/50 py-3">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <CardTitle className="text-lg">
-                          Order #{order.order.id.slice(-6)}
-                          {/* ✅ Updated to use table_number instead of table_id for display */}
-                          {order.order.table_number && ` • Table ${order.order.table_number}`}
-                        </CardTitle>
-                        <CardDescription>
-                          {order.order.restaurant.name} • Placed at {formatDate(order.created_at)}
-                        </CardDescription>
+            <div className="space-y-4">
+              {filteredOrders.map((order) => {
+                const isUpdating = updatingId === order.order.id;
+                const eta = etaChoice[order.order.id] ?? 15;
+                return (
+                  <Card key={order.id}>
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          {/* ✅ Show both Internal Short ID + Tracking Code */}
+                          <CardTitle>
+                            #{order.order.id.slice(-6)} • 
+                            <Link
+                              href={`/customer-end-pages/${order.order.restaurant.name.toLowerCase().replace(/\s+/g, '-')}/orders/${order.order.track_code}`}
+                              className="text-blue-600 hover:underline ml-1"
+                              target="_blank"
+                            >
+                              Code: {order.order.track_code}
+                            </Link>
+                            {order.order.table_number && ` • Table ${order.order.table_number}`}
+                          </CardTitle>
+                          <CardDescription>
+                            {order.order.restaurant.name} • {formatDate(order.created_at)}
+                          </CardDescription>
+                        </div>
+                        <Badge variant={getStatusVariant(order.status)} className="flex items-center gap-1">
+                          {getStatusIcon(order.status)} {order.status}
+                        </Badge>
                       </div>
-                      <Badge variant={getStatusVariant(order.status)} className="flex items-center gap-1">
-                        {getStatusIcon(order.status)}
-                        {order.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="py-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold">{order.menu_item?.name || 'Menu Item'}</h3>
-                        <p className="text-sm text-muted-foreground">Quantity: {order.quantity}</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-semibold">{order.menu_item?.name}</h3>
+                          <p className="text-sm text-muted-foreground">Qty: {order.quantity}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">${(order.price * order.quantity).toFixed(2)}</p>
+                          <p className="text-xs text-muted-foreground">${order.price.toFixed(2)} each</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold">${(order.price * order.quantity).toFixed(2)}</p>
-                        <p className="text-sm text-muted-foreground">${order.price.toFixed(2)} each</p>
+
+                      {/* Actions */}
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          disabled={isUpdating || order.status !== 'Pending'}
+                          onClick={() => handleUpdate(order.order.id, 'Confirmed')}
+                        >
+                          {isUpdating ? 'Updating...' : 'Confirm'}
+                        </Button>
+
+                        <div className="flex items-center gap-2">
+                          <select
+                            className="border rounded px-2 py-1 text-sm"
+                            value={eta}
+                            onChange={(e) => setEtaChoice((prev) => ({ ...prev, [order.order.id]: Number(e.target.value) }))}
+                            disabled={isUpdating}
+                          >
+                            {ETA_PRESETS.map((m) => (
+                              <option key={m} value={m}>{m} min</option>
+                            ))}
+                          </select>
+                          <Button
+                            size="sm"
+                            disabled={isUpdating || (order.status !== 'Pending' && order.status !== 'Confirmed')}
+                            onClick={() => handleUpdate(order.order.id, 'Preparing', eta)}
+                          >
+                            {isUpdating ? 'Updating...' : `Preparing (${eta}m)`}
+                          </Button>
+                        </div>
+
+                        <Button
+                          size="sm"
+                          disabled={isUpdating || order.status !== 'Preparing'}
+                          onClick={() => handleUpdate(order.order.id, 'Ready')}
+                        >
+                          {isUpdating ? 'Updating...' : 'Ready'}
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={isUpdating || order.status === 'Ready'}
+                          onClick={() => handleUpdate(order.order.id, 'Cancelled')}
+                        >
+                          {isUpdating ? 'Updating...' : 'Cancel'}
+                        </Button>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12">

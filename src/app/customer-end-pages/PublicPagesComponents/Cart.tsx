@@ -5,18 +5,21 @@ import { useCartStore } from '@/app/customer-end-pages/store/cartStore';
 import CartItem from './CartItem';
 import { X, ShoppingCart, Loader2 } from 'lucide-react';
 import { submitOrder } from '@/lib/api/orders';
+import { useRouter } from 'next/navigation';
 
 interface CartProps {
   isOpen: boolean;
   onClose: () => void;
   restaurantId: string;
   tableId: string;
+  restaurantSlug: string; // needed for redirect
 }
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
 
-export default function Cart({ isOpen, onClose, restaurantId, tableId }: CartProps) {
+export default function Cart({ isOpen, onClose, restaurantId, tableId, restaurantSlug }: CartProps) {
+  const router = useRouter();
   const { items, totalPrice, clearCart } = useCartStore();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -24,10 +27,19 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId }: CartPro
   const handlePlaceOrder = async () => {
     setIsPlacingOrder(true);
     try {
-      await submitOrder(items, restaurantId, tableId, totalPrice());
-      setOrderSuccess(true);
-      clearCart();
+      const total = totalPrice();
+      const { success, orderId } = await submitOrder(items, restaurantId, String(tableId), total);
+
+      if (success && orderId) {
+        setOrderSuccess(true);
+        clearCart();
+        router.push(`/customer-end-pages/${restaurantSlug}/orders/${orderId}`);
+        return;
+      }
+
+      alert('Order could not be placed. Please try again.');
     } catch (error) {
+      console.error(error);
       alert('There was an error placing your order. Please try again.');
     } finally {
       setIsPlacingOrder(false);
@@ -36,9 +48,7 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId }: CartPro
 
   const handleClose = () => {
     onClose();
-    setTimeout(() => {
-      setOrderSuccess(false);
-    }, 300);
+    setTimeout(() => setOrderSuccess(false), 300);
   };
 
   return (
@@ -47,7 +57,7 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId }: CartPro
       <div
         className={`fixed inset-0 bg-black transition-opacity duration-300 ${
           isOpen ? 'opacity-50' : 'opacity-0 pointer-events-none'
-        } z-[1190]`}  
+        } z-[1190]`}
         onClick={handleClose}
       />
 
@@ -55,7 +65,7 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId }: CartPro
       <div
         className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
-        } z-[1200]`}  
+        } z-[1200]`}
       >
         <div className="flex flex-col h-full">
           <div className="flex justify-between items-center p-6 border-b">
@@ -69,7 +79,7 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId }: CartPro
           {orderSuccess ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-gray-700 p-6">
               <h3 className="text-2xl font-bold text-green-600">Order Placed!</h3>
-              <p className="mt-2">Your order has been sent to the kitchen. Thank you!</p>
+              <p className="mt-2">Redirecting to tracking page…</p>
             </div>
           ) : (
             <>

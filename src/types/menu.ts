@@ -1,3 +1,5 @@
+// src/types/menu.ts
+
 export type MenuCategory = 'starters' | 'mains' | 'desserts' | 'drinks';
 
 export interface MenuItem {
@@ -5,8 +7,9 @@ export interface MenuItem {
   name: string;
   description: string;
   price: number;
-  // category: MenuCategory;
+  // FIX: The category is used in the app, so it should be part of the type.
+  // Making it optional to handle cases where it might be null.
+  category?: MenuCategory;
   photo_url?: string;
-  // ADDED: Make sure this property exists
-  available: boolean; 
+  available: boolean;
 }

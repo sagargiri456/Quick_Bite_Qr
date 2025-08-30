@@ -1,27 +1,68 @@
 'use client';
 
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, UtensilsCrossed, SquareKanban, LogOut } from 'lucide-react';
+import {
+  Home,
+  UtensilsCrossed,
+  SquareKanban,
+  LogOut,
+  ListOrdered,
+} from 'lucide-react';
 import { logout } from '@/lib/auth/logout';
+
+function NavItem({
+  href,
+  label,
+  icon: Icon,
+}: {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number }>;
+}) {
+  const pathname = usePathname();
+  const isActive = pathname.startsWith(href);
+
+  return (
+    <Link
+      href={href}
+      aria-current={isActive ? 'page' : undefined}
+      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-lg font-medium ${
+        isActive
+          ? 'bg-indigo-600 text-white shadow-md'
+          : 'text-gray-600 hover:bg-gray-100'
+      }`}
+    >
+      <Icon size={24} />
+      {label}
+    </Link>
+  );
+}
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   const handleLogout = async () => {
-    await logout();
-    router.push('/signup/login');
+    setLoading(true);
+    try {
+      await logout();
+      router.push('/signup/login');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const navItems = [
     { href: '/dashboard', label: 'Home', icon: Home },
     { href: '/dashboard/menu', label: 'Menu', icon: UtensilsCrossed },
     { href: '/dashboard/tables', label: 'Tables', icon: SquareKanban },
+    { href: '/dashboard/orders', label: 'Orders', icon: ListOrdered }, // ✅ Orders added
   ];
 
   return (
@@ -33,35 +74,24 @@ export default function DashboardLayout({
         </div>
         <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-lg font-medium ${
-                pathname === item.href
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <item.icon size={24} />
-              {item.label}
-            </Link>
+            <NavItem key={item.href} {...item} />
           ))}
         </nav>
         <div className="p-4 border-t">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-lg font-medium text-red-500 hover:bg-red-50"
+            disabled={loading}
+            aria-label="Logout"
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-lg font-medium text-red-500 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <LogOut size={24} />
-            Log Out
+            {loading ? 'Logging out...' : 'Log Out'}
           </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-8 overflow-auto">
-        {children}
-      </main>
+      <main className="flex-1 p-8 overflow-auto">{children}</main>
     </div>
   );
 }
