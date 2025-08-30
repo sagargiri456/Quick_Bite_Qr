@@ -74,6 +74,9 @@ export default function ImageUpload({ onChange, value }: ImageUploadProps) {
           src={value}
           alt="Uploaded Image"
           className="rounded-lg object-cover"
+          sizes="(max-width: 768px) 100vw, 384px"
+          quality={80}
+          loading="lazy"
         />
         <button
           onClick={() => onChange()}
