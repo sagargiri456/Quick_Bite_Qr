@@ -23,7 +23,7 @@ export default function Dashboard() {
 
     return () => {
       clearTimeout(timer)
-      window.removeEventListener("online", handleOnline)
+      window.removeEventListener("online", handleOnline) 
       window.removeEventListener("offline", handleOffline)
     }
   }, [])
