@@ -44,7 +44,7 @@ const menus = [
   },
   {
     id: "3",
-    name: "Weekend Brunch",
+    name: "Weekend nien",
     description: "Indulgent brunch offerings for weekend relaxation",
     category: "Special Menu",
     status: "Active",
@@ -54,7 +54,7 @@ const menus = [
     popularity: 92,
     seasonal: true,
     chef: "Chef Emma",
-    cuisine: "Modern Brunch",
+  
     image: "https://images.unsplash.com/photo-1551218808-94e220e796d9?w=400&h=300&fit=crop&auto=format"
   },
   {

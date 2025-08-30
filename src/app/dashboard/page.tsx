@@ -110,7 +110,7 @@ export default function Dashboard() {
             © {new Date().getFullYear()} Restaurant Dashboard. All rights reserved.
           </p>
           <p className="text-sm opacity-80">
-            Built with ❤️ by Team
+            Built with ❤️ by QuickBite Team
           </p>
         </div>
       </footer>
