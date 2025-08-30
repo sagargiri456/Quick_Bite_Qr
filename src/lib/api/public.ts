@@ -10,10 +10,10 @@ export async function getRestaurantBySlug(
 ): Promise<{ id: string; restaurant_name: string; slug: string } | null> {
   const { data, error } = await supabase
     .from("restaurants")
-    // FIX: Select 'restaurant_name' to match your database schema
     .select("id, restaurant_name, slug")
     .eq("slug", slug)
-    .single();
+    // FIX: Use .maybeSingle() to prevent errors if multiple rows are found
+    .maybeSingle();
 
   if (error) {
     console.error("Error fetching restaurant by slug:", error.message);
@@ -24,15 +24,15 @@ export async function getRestaurantBySlug(
 }
 
 /**
- * ADDED: A new function to get all details for the cart and page header.
- * This was missing and causing a runtime error.
+ * Get all details for the cart and page header.
  */
 export async function getRestaurantDetails(slug: string): Promise<Restaurant | null> {
     const { data, error } = await supabase
         .from('restaurants')
         .select('*') // Select all details
         .eq('slug', slug)
-        .single();
+        // FIX: Use .maybeSingle() here as well for consistency and safety
+        .maybeSingle();
 
     if (error) {
         console.error("Error fetching full restaurant details:", error.message);

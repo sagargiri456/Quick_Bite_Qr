@@ -5,12 +5,14 @@ import { notFound } from 'next/navigation';
 type PageProps = {
   params: {
     restaurantSlug: string;
-    Code: string;
+    // FIX: This must be lowercase to match the folder name '[code]'
+    code: string;
   };
 };
 
 export default async function OrderTrackPage({ params }: PageProps) {
-  const { restaurantSlug, Code: code } = params;
+  // FIX: Destructuring is now simple and direct
+  const { restaurantSlug, code } = params;
   const supabase = await createServerClient();
 
   // Step 1: Fetch order by tracking code
@@ -53,6 +55,7 @@ export default async function OrderTrackPage({ params }: PageProps) {
     <StatusClient
       trackCode={order.track_code}
       restaurantName={restaurant.restaurant_name}
+      orderId={order.id} // Re-added orderId for push notifications
       initialStatus={order.status}
       initialEta={order.estimated_time}
       createdAt={order.created_at}

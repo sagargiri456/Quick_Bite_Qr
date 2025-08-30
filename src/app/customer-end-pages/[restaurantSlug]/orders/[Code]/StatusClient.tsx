@@ -5,17 +5,19 @@ import { supabase } from '@/lib/supabase/client';
 import OrderStatusTimeline from '@/components/orders/OrderStatusTimeline';
 import StatusBadge from '@/components/orders/StatusBadge';
 import ETA from '@/components/orders/ETA';
+import FormattedDate from '@/components/FormattedDate';
+import { registerPushForOrder } from '@/lib/utils/notifications'; // 1. Import the notification utility
 
 // Defines the props this component receives from the page
 type StatusClientProps = {
   trackCode: string;
   restaurantName: string;
+  orderId: string; // 2. Ensure orderId is received for the subscription
   initialStatus: string;
   initialEta: number | null;
   createdAt: string;
 };
 
-// Helper function to format status text
 const dbToUiStatus = (dbStatus: string): 'Pending' | 'Confirmed' | 'Preparing' | 'Ready' | 'Complete' | 'Cancelled' => {
   const statusMap = {
     pending: 'Pending', confirmed: 'Confirmed', preparing: 'Preparing',
@@ -27,6 +29,7 @@ const dbToUiStatus = (dbStatus: string): 'Pending' | 'Confirmed' | 'Preparing' |
 export default function StatusClient({
   trackCode,
   restaurantName,
+  orderId, // Receive orderId
   initialStatus,
   initialEta,
   createdAt,
@@ -34,6 +37,14 @@ export default function StatusClient({
   const [status, setStatus] = useState(dbToUiStatus(initialStatus));
   const [eta, setEta] = useState<number | null>(initialEta);
 
+  // 3. ADD THIS EFFECT TO TRIGGER PUSH SUBSCRIPTION
+  useEffect(() => {
+    // When the component first loads, ask for permission and register
+    // for push notifications for this specific order.
+    registerPushForOrder(orderId);
+  }, [orderId]);
+
+  // This effect handles real-time page updates via Supabase channels
   useEffect(() => {
     const channel = supabase
       .channel(`order-${trackCode}`)
@@ -75,7 +86,9 @@ export default function StatusClient({
               </div>
               <div>
                 <span className="text-sm font-medium text-gray-500">Order Placed</span>
-                <p className="text-lg font-semibold text-gray-900">{new Date(createdAt).toLocaleString()}</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  <FormattedDate dateString={createdAt} />
+                </p>
               </div>
             </div>
 
@@ -88,7 +101,6 @@ export default function StatusClient({
               </div>
               <div>
                 <span className="text-sm font-medium text-gray-500">Estimated Time</span>
-                {/* This is the correct usage of the ETA component */}
                 <ETA
                   currentStatus={status}
                   etaMinutes={eta}
