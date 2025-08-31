@@ -23,6 +23,21 @@ type MenuItem = {
   photo_url?: string;
   available?: boolean;
   created_at?: string;
+  // Additional properties for the UI
+  status?: string;
+  image?: string;
+  subcategory?: string;
+  cost?: number;
+  profit?: number;
+  chef?: string;
+  preparationTime?: number;
+  calories?: number;
+  popularity?: number;
+  orders?: number;
+  rating?: number;
+  dietary?: string[];
+  allergens?: string[];
+  seasonal?: boolean;
 };
 
 
@@ -62,6 +77,7 @@ export default function MenuItemsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
   const [priceRange, setPriceRange] = useState("All");
 
 
@@ -91,10 +107,10 @@ export default function MenuItemsPage() {
     return menuItems.filter(item => {
       const searchMatch = 
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        
+        item.description.toLowerCase().includes(searchTerm.toLowerCase());
       
       const categoryMatch = categoryFilter === "All" || item.category === categoryFilter;
+      const statusMatch = statusFilter === "All" || item.status === statusFilter;
       
       let priceMatch = true;
       if (priceRange !== "All") {
@@ -102,20 +118,20 @@ export default function MenuItemsPage() {
         priceMatch = item.price >= min && item.price <= max;
       }
       
-      return searchMatch && categoryMatch  && priceMatch;
+      return searchMatch && categoryMatch && statusMatch && priceMatch;
     });
-  }, [searchTerm, categoryFilter, priceRange]);
+  }, [searchTerm, categoryFilter, statusFilter, priceRange, menuItems]);
 
   // Calculate analytics
   const analytics = useMemo(() => {
     const totalItems = menuItems.length;
     console.log(totalItems);
     const activeItems = menuItems.filter(i => i.status === "Active").length;
-    const totalRevenue = menuItems.reduce((sum, i) => sum + (i.price * i.orders), 0);
-    const totalProfit = menuItems.reduce((sum, i) => sum + (i.profit * i.orders), 0);
-    const avgPrice = menuItems.reduce((sum, i) => sum + i.price, 0) / totalItems;
-    const avgRating = menuItems.reduce((sum, i) => sum + i.rating, 0) / totalItems;
-    const totalOrders = menuItems.reduce((sum, i) => sum + i.orders, 0);
+    const totalRevenue = menuItems.reduce((sum, i) => sum + (i.price * (i.orders || 0)), 0);
+    const totalProfit = menuItems.reduce((sum, i) => sum + ((i.profit || 0) * (i.orders || 0)), 0);
+    const avgPrice = totalItems > 0 ? menuItems.reduce((sum, i) => sum + i.price, 0) / totalItems : 0;
+    const avgRating = totalItems > 0 ? menuItems.reduce((sum, i) => sum + (i.rating || 0), 0) / totalItems : 0;
+    const totalOrders = menuItems.reduce((sum, i) => sum + (i.orders || 0), 0);
     
     return {
       totalItems,
@@ -248,7 +264,7 @@ export default function MenuItemsPage() {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }: { name: string; percent?: number }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
@@ -322,7 +338,7 @@ export default function MenuItemsPage() {
               {/* Food Image */}
               <div className="relative h-48 w-full overflow-hidden">
                 <Image
-                  src={item.image}
+                  src={item.image || item.photo_url || `/images/caesar-salad.jpg`}
                   alt={item.name}
                   fill
                   className="object-cover transition-transform duration-300 hover:scale-105"
@@ -422,7 +438,7 @@ export default function MenuItemsPage() {
                 </div>
                 
                 {/* Dietary Information */}
-                {item.dietary.length > 0 && (
+                {item.dietary && item.dietary.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {item.dietary.map((diet) => (
                       <Badge 
@@ -437,7 +453,7 @@ export default function MenuItemsPage() {
                 )}
                 
                 {/* Allergens */}
-                {item.allergens.length > 0 && (
+                {item.allergens && item.allergens.length > 0 && (
                   <div className="text-xs text-slate-500">
                     <span className="font-medium">Allergens:</span> {item.allergens.join(", ")}
                   </div>
