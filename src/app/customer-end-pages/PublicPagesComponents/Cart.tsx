@@ -12,7 +12,7 @@ interface CartProps {
   onClose: () => void;
   restaurantId: string;
   tableId: string;
-  restaurantSlug: string; // needed for redirect
+  restaurantSlug: string;
 }
 
 const formatPrice = (price: number) =>
@@ -28,15 +28,17 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId, restauran
     setIsPlacingOrder(true);
     try {
       const total = totalPrice();
-      const { success, orderId } = await submitOrder(items, restaurantId, String(tableId), total);
+      // The submitOrder function now returns the necessary details for redirection
+      const { success, trackCode, restaurantSlug: slug } = await submitOrder(items, restaurantId, tableId, total);
 
-      if (success && orderId) {
+      if (success && trackCode && slug) {
         setOrderSuccess(true);
         clearCart();
-        router.push(`/customer-end-pages/${restaurantSlug}/orders/${orderId}`);
+        // Redirect to the correct order tracking page
+        router.push(`/customer-end-pages/${slug}/orders/${trackCode}`);
         return;
       }
-
+      
       alert('Order could not be placed. Please try again.');
     } catch (error) {
       console.error(error);

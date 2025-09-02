@@ -22,7 +22,7 @@ export default function TablesPage() {
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Table Management</h1>
-            <p className="text-gray-600 mt-1">Add, view, and manage your restaurant's tables and QR codes.</p>
+            <p className="text-gray-600 mt-1">Add, view, and manage your restaurant&apos;s tables and QR codes.</p>
           </div>
           <Link 
             href="/dashboard/tables/add" 
@@ -70,4 +70,4 @@ export default function TablesPage() {
       </div>
     </div>
   );
-}
+} 

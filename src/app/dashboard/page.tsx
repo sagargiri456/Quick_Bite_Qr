@@ -1,62 +1,100 @@
 'use client';
 
-import { useMenuItems } from '@/lib/hooks/useMenuItems';
-import { useTables } from '@/lib/hooks/useTables';
-import { useProtectedRoute } from '@/lib/hooks/useProtectedRoute';
-import { UtensilsCrossed, SquareKanban, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import Image from 'next/image';
+import { LiveOrdersPanel } from '@/components/LiveOrdersPanel';
+import { LiveOrderNotification } from '@/components/LiveOrderNotification';
 
-const StatCard = ({ title, value, icon: Icon, loading }: { title: string, value: number, icon: React.ElementType, loading: boolean }) => (
-  <div className="bg-white p-6 rounded-2xl shadow-md flex items-center gap-6 transition-all hover:shadow-xl hover:-translate-y-1">
-    <div className="bg-indigo-100 p-4 rounded-xl">
-      <Icon className="h-8 w-8 text-indigo-600" />
-    </div>
-    <div>
-      <p className="text-lg text-gray-600">{title}</p>
-      {loading ? (
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-      ) : (
-        <p className="text-4xl font-bold text-gray-800">{value}</p>
-      )}
-    </div>
-  </div>
-);
+export default function DashboardPage() {
+  const [isOffline, setIsOffline] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error] = useState<string | null>(null);
 
-export default function DashboardHomePage() {
-  const { loading: authLoading } = useProtectedRoute();
-  const { menuItems, loading: menuLoading } = useMenuItems();
-  const { tables, loading: tablesLoading } = useTables();
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 800);
 
-  // You would fetch the real restaurant name after setting up user profiles
-  const restaurantName = "Your Restaurant"; 
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    setIsOffline(!navigator.onLine);
 
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-12 w-12 animate-spin text-indigo-500" />
-      </div>
-    );
-  }
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-800">Welcome to {restaurantName}!</h1>
-        <p className="text-gray-600 mt-2 text-lg">Here's a summary of your restaurant's activity.</p>
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">
+      {/* Hero / Banner Section */}
+      <div className="relative overflow-hidden rounded-xl mb-8">
+        <div className="absolute inset-0 z-0">
+          <Image
+            src="/restaurant-interior.jpg"
+            alt="Restaurant Interior"
+            fill
+            className="object-cover opacity-20"
+            priority
+          />
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 via-purple-900/60 to-indigo-900/40 z-10"></div>
+        <div className="relative z-20 p-10 text-white">
+          <h1 className="text-3xl font-bold">Welcome to QuickBite QR Dashboard</h1>
+          <p className="mt-2 text-lg opacity-80">
+            Manage your restaurant tables, menu, and live orders in one place.
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard 
-          title="Total Menu Items" 
-          value={menuItems.length} 
-          icon={UtensilsCrossed} 
-          loading={menuLoading} 
-        />
-        <StatCard 
-          title="Total Tables" 
-          value={tables.length} 
-          icon={SquareKanban} 
-          loading={tablesLoading} 
-        />
+      {/* Offline Banner */}
+      {isOffline && (
+        <motion.div
+          className="bg-red-500 text-white text-center py-2 font-medium"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          ⚠️ You are offline. Some features may not be available.
+        </motion.div>
+      )}
+
+      {/* Main Dashboard Content */}
+      <div className="flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+        <div className="max-w-[2000px] mx-auto space-y-8">
+          {loading ? (
+            <div className="bg-white p-6 rounded-xl shadow-md text-center">
+              <p className="animate-pulse text-gray-500">
+                Loading dashboard...
+              </p>
+            </div>
+          ) : error ? (
+            <div className="bg-red-100 text-red-600 p-4 rounded-lg">
+              Failed to load dashboard: {error}
+            </div>
+          ) : (
+            <>
+              {/* Live Orders */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+              >
+                <LiveOrdersPanel />
+              </motion.div>
+
+              {/* Notifications */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                <LiveOrderNotification />
+              </motion.div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

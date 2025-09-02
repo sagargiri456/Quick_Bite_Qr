@@ -14,7 +14,7 @@ export function useMenuItems() {
       setError(null);
       const data = await menuApi.getMenuItems();
       setMenuItems(data);
-    } catch (err) {
+    } catch {
       setError('Could not load menu. Please try refreshing the page.');
     } finally {
       setLoading(false);

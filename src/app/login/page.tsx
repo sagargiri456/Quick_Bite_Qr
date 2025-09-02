@@ -1,22 +1,44 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { loginWithEmail } from '@/lib/auth/login'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Loader2 } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { motion } from 'framer-motion'
+
+// Lazy load icon
+const Loader2 = dynamic(() => import('lucide-react').then(m => m.Loader2))
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isOffline, setIsOffline] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false)
+    const handleOffline = () => setIsOffline(true)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    setIsOffline(!navigator.onLine)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isOffline) return
+
     setError(null)
     setIsSubmitting(true)
-    
+
     const { error } = await loginWithEmail(email, password)
     if (error) {
       setError(error.message)
@@ -28,13 +50,23 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-100 p-4 sm:p-8 flex items-center justify-center">
-      <div className="max-w-md w-full">
+      <motion.div
+        className="max-w-md w-full"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="bg-white rounded-2xl shadow-md p-8">
           <h1 className="text-3xl font-bold text-gray-800 text-center">Welcome Back!</h1>
           <p className="text-gray-600 mt-2 text-center">Log in to manage your restaurant.</p>
 
+          {isOffline && (
+            <p className="mt-3 text-center text-sm text-red-600 font-medium bg-red-100 p-2 rounded-lg">
+              You’re offline. Please reconnect to continue.
+            </p>
+          )}
+
           <form onSubmit={handleLogin} className="mt-8 space-y-6">
-            {/* --- MODIFICATION: Added 'text-gray-900' --- */}
             <input
               className="w-full p-3 border-2 rounded-lg text-gray-900"
               placeholder="Email"
@@ -42,8 +74,9 @@ export default function LoginPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
+              disabled={isOffline}
             />
-            {/* --- MODIFICATION: Added 'text-gray-900' --- */}
+
             <input
               className="w-full p-3 border-2 rounded-lg text-gray-900"
               placeholder="Password"
@@ -51,27 +84,37 @@ export default function LoginPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
+              disabled={isOffline}
             />
 
-            {error && <p className="text-red-500 text-center">{error}</p>}
+            {error && (
+              <motion.p
+                className="text-red-500 text-center"
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                {error}
+              </motion.p>
+            )}
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isOffline}
               className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold p-3 rounded-lg flex items-center justify-center disabled:opacity-50"
             >
               {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
               {isSubmitting ? 'Logging In...' : 'Log In'}
             </button>
+
             <p className="text-center text-gray-600">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/signup" className="font-semibold text-indigo-600 hover:underline">
                 Sign Up
               </Link>
             </p>
           </form>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }

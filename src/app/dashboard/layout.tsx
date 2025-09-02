@@ -1,5 +1,4 @@
-'use client';
-
+ 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -11,6 +10,7 @@ import {
   ListOrdered,
 } from 'lucide-react';
 import { logout } from '@/lib/auth/logout';
+import { DashboardNavCards } from '@/components/DashboardNavCards';
 
 function NavItem({
   href,
@@ -48,15 +48,6 @@ export default function DashboardLayout({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const handleLogout = async () => {
-    setLoading(true);
-    try {
-      await logout();
-      router.push('/signup/login');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const navItems = [
     { href: '/dashboard', label: 'Home', icon: Home },
@@ -67,7 +58,8 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
+      <DashboardNavCards />
+      {/* Sidebar
       <aside className="w-64 bg-white shadow-md flex flex-col">
         <div className="p-6 text-2xl font-bold text-indigo-600 border-b">
           QuickBite QR
@@ -88,10 +80,10 @@ export default function DashboardLayout({
             {loading ? 'Logging out...' : 'Log Out'}
           </button>
         </div>
-      </aside>
+      </aside> */}
 
       {/* Main Content Area */}
-      <main className="flex-1 p-8 overflow-auto">{children}</main>
+      <main className="flex-1 p-4 py-0 overflow-auto">{children}</main>
     </div>
   );
 }

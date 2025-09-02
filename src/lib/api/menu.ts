@@ -1,37 +1,46 @@
 import { supabase } from '@/lib/supabase/client';
-import { MenuItem as MenuItemType } from '@/types/menu';
+import { MenuItem } from '@/types/menu';
 
-// Extend the base MenuItem type to include the required restaurant_id
-export interface MenuItem extends MenuItemType {
-  restaurant_id: string;
-}
+// Define the type for creating a new menu item (omit id + timestamps)
+export type NewMenuItem = Omit<MenuItem, 'id' | 'created_at' | 'updated_at'>;
 
-// Define the type for creating a new menu item
-export type NewMenuItem = Omit<MenuItem, 'id'>;
-
-// READ: Fetches menu items (will be automatically filtered by RLS)
+// READ: Fetches menu items (RLS filters to current restaurant automatically)
 export const getMenuItems = async (): Promise<MenuItem[]> => {
   const { data, error } = await supabase.from('menu_items').select('*');
   if (error) throw new Error(error.message);
   return data || [];
 };
 
-// CREATE: Adds a new menu item to the database
+// CREATE: Adds a new menu item
 export const addMenuItem = async (itemData: NewMenuItem): Promise<MenuItem> => {
-  const { data, error } = await supabase.from('menu_items').insert([itemData]).select().single();
+  const { data, error } = await supabase
+    .from('menu_items')
+    .insert([itemData])
+    .select()
+    .single();
+
   if (error) throw new Error(error.message);
-  return data;
+  return data as MenuItem;
 };
 
 // UPDATE: Updates an existing menu item
-export const updateMenuItem = async (id: number, updates: Partial<MenuItem>): Promise<MenuItem> => {
-    const { data, error } = await supabase.from('menu_items').update(updates).eq('id', id).select().single();
-    if (error) throw new Error(error.message);
-    return data;
+export const updateMenuItem = async (
+  id: number,
+  updates: Partial<MenuItem>
+): Promise<MenuItem> => {
+  const { data, error } = await supabase
+    .from('menu_items')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as MenuItem;
 };
 
 // DELETE: Deletes a menu item
 export const deleteMenuItem = async (id: number): Promise<void> => {
-    const { error } = await supabase.from('menu_items').delete().eq('id', id);
-    if (error) throw new Error(error.message);
+  const { error } = await supabase.from('menu_items').delete().eq('id', id);
+  if (error) throw new Error(error.message);
 };

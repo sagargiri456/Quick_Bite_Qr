@@ -1,20 +1,20 @@
 'use client';
-
-import { useState, useEffect, useCallback } from 'react';
-import * as tableApi from '@/lib/api/tables';
-import { supabase } from '@/lib/supabase/client'; // Import the Supabase client
+import { useState, useEffect, useCallback } from "react";
 
 export function useTables() {
-  const [tables, setTables] = useState<tableApi.Table[]>([]);
+  const [tables, setTables] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchTables = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await tableApi.getTables();
+      const res = await fetch("/api/tables");
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
       setTables(data);
-    } catch (error) {
-      console.error("Failed to fetch tables", error);
+    } catch (err: any) {
+      setError(err.message || "Failed to fetch tables");
     } finally {
       setLoading(false);
     }
@@ -24,27 +24,25 @@ export function useTables() {
     fetchTables();
   }, [fetchTables]);
 
-  // This function now calls your Edge Function to create the table and QR code
-  const addTable = async (name: string, restaurantId: string) => {
-    // CORRECTED: The function name is 'generate-table-qr'
-    const { data: newTable, error } = await supabase.functions.invoke('generate-table-qr', {
-      body: { restaurantId, tableNumber: name },
+  const addTable = async (table: { table_number: string; qr_code_url: string; restaurant_id: string }) => {
+    const res = await fetch("/api/tables", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(table),
     });
-
-    if (error) {
-      console.error("Error calling generate-table-qr Edge Function:", error);
-      throw error;
-    }
-
-    // Update the local state with the new table returned from the function
-    setTables(prev => [...prev, newTable]);
-    return newTable;
+    if (!res.ok) throw new Error(await res.text());
+    await fetchTables(); // refresh
   };
 
   const deleteTable = async (id: number) => {
-    await tableApi.deleteTable(id);
-    setTables(prev => prev.filter(table => table.id !== id));
+    const res = await fetch("/api/tables", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    await fetchTables(); // refresh
   };
 
-  return { tables, loading, addTable, deleteTable };
+  return { tables, loading, error, addTable, deleteTable, refetch: fetchTables };
 }
