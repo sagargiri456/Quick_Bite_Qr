@@ -1,86 +1,86 @@
+// src/app/dashboard/menu_items/page.tsx
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { useMenuItems } from "@/lib/hooks/useMenuItems";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import MenuItemCard from "@/components/menu/MenuItemCard";
+import DeleteConfirmation from "@/components/menu/DeleteConfirmation";
+import { toast } from "sonner";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Search, Plus, Loader2 } from "lucide-react";
+import { MenuItem } from "@/types/menu";
 
 export default function MenuItemsPage() {
-  const { menuItems, loading, error } = useMenuItems();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [priceRange, setPriceRange] = useState("All");
+  const { menuItems, loading, error, deleteMenuItem } = useMenuItems();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
 
-  // Filter items
-  const filteredItems = useMemo(() => {
-    return menuItems.filter((item) => {
-      const searchMatch =
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredItems = useMemo(() => {
+    return menuItems.filter((item) =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm, menuItems]);
 
-      const categoryMatch =
-        categoryFilter === "All" || item.category === categoryFilter;
+  const handleDeleteClick = (item: MenuItem) => {
+    setItemToDelete(item);
+    setDeleteModalOpen(true);
+  };
 
-      const statusMatch =
-        statusFilter === "All" ||
-        (item.available ? "Active" : "Inactive") === statusFilter;
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    try {
+      await deleteMenuItem(itemToDelete.id);
+      toast.success(`"${itemToDelete.name}" was deleted successfully.`);
+    } catch (err) {
+      toast.error("Failed to delete the item.");
+    } finally {
+      setDeleteModalOpen(false);
+      setItemToDelete(null);
+    }
+  };
 
-      let priceMatch = true;
-      if (priceRange !== "All") {
-        const [min, max] = priceRange.split("-").map(Number);
-        priceMatch = item.price >= min && (max ? item.price <= max : true);
-      }
+  return (
+    <>
+      <div className="min-h-[80vh] px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-slate-800">All Menu Items</h1>
+            <Link href="/dashboard/menu/add">
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add New Item
+              </Button>
+            </Link>
+          </div>
 
-      return searchMatch && categoryMatch && statusMatch && priceMatch;
-    });
-  }, [searchTerm, categoryFilter, statusFilter, priceRange, menuItems]);
+          <Card>
+            <CardContent className="p-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Input placeholder="Search menu items..." className="pl-9" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              </div>
+            </CardContent>
+          </Card>
 
-  if (loading) return <p>Loading menu items...</p>;
-  if (error) return <p className="text-red-500">{error}</p>;
-
-  return (
-    <div className="min-h-[80vh] px-4 sm:px-6 lg:px-8 py-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-800">Menu Items</h1>
-        </div>
-
-        {/* Filters */}
-        <Card>
-          <CardContent className="p-4 flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <Input
-                placeholder="Search menu items..."
-                className="pl-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Items */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {filteredItems.map((item) => (
-            <Card key={item.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <CardTitle>{item.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-600">{item.description}</p>
-                <p className="text-green-600 font-semibold mt-2">${item.price}</p>
-                <p className="text-sm text-slate-500">
-                  {item.available ? "Active" : "Inactive"}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+          {loading ? (
+            <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-slate-500" /></div>
+          ) : error ? (
+            <div className="text-red-500 bg-red-50 p-4 rounded-lg">{error}</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {filteredItems.map((item) => (
+                <MenuItemCard key={item.id} item={item} onEdit={`/dashboard/menu/edit/${item.id}`} onDelete={() => handleDeleteClick(item)} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <DeleteConfirmation isOpen={isDeleteModalOpen} onClose={() => setDeleteModalOpen(false)} onConfirm={confirmDelete} itemName={itemToDelete?.name || ""} />
+    </>
+  );
 }
