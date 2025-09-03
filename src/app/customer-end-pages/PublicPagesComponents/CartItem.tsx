@@ -1,3 +1,5 @@
+// src/app/customer-end-pages/PublicPagesComponents/CartItem.tsx
+
 'use client';
 
 import Image from 'next/image';
@@ -8,14 +10,15 @@ interface CartItemProps {
   item: CartItemType;
 }
 
-const formatPrice = (price: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
+// FIXED: Changed currency to INR to be consistent with the rest of the app
+const formatPrice = (price: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(price);
 
 export default function CartItem({ item }: CartItemProps) {
   const { addItem, removeItem } = useCartStore();
 
   return (
     <div className="flex items-center gap-4 py-4">
-      <div className="relative h-16 w-16 rounded-lg overflow-hidden">
+      <div className="relative h-16 w-16 rounded-lg overflow-hidden flex-shrink-0">
         {item.photo_url ? (
           <Image src={item.photo_url} alt={item.name} layout="fill" objectFit="cover" />
         ) : (

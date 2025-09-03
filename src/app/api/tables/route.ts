@@ -1,10 +1,11 @@
+// src/app/api/tables/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 // GET all tables for the current restaurant
 export async function GET() {
-  // FIXED: The call to createServerClient() must be awaited
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
   // 1. Get the logged in user
   const {
@@ -40,13 +41,12 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data || []); // Return empty array if data is null
+  return NextResponse.json(data || []);
 }
 
 // POST create a new table
 export async function POST(req: Request) {
-  // FIXED: The call must also be awaited here
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
   const body = await req.json();
 
   const {

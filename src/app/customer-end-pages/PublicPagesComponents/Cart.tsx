@@ -14,7 +14,7 @@ interface CartProps {
   onClose: () => void;
   restaurantId: string;
   tableId: string;
-  restaurantSlug: string; // FIXED: Ensure this prop is received
+  restaurantSlug: string;
 }
 
 const formatPrice = (price: number) =>
@@ -26,20 +26,24 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId, restauran
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   const handlePlaceOrder = async () => {
+    if (items.length === 0) {
+        toast.error("Your cart is empty.");
+        return;
+    }
     setIsPlacingOrder(true);
     try {
       const total = totalPrice();
-      // The API call now includes the cart items
       const { success, trackCode, restaurantSlug: slug } = await submitOrder(items, restaurantId, tableId, total);
 
       if (success && trackCode && slug) {
         clearCart();
         toast.success("Order placed successfully!");
-        // Redirect to the order tracking page
+        // Redirect to the order tracking page. The route is correct based on folder structure.
         router.push(`/customer-end-pages/${slug}/orders/${trackCode}`);
-        return;
+        onClose(); // Close the cart on success
+      } else {
+        toast.error('Order could not be placed. Please try again.');
       }
-      toast.error('Order could not be placed. Please try again.');
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || 'There was an error placing your order.');
@@ -49,7 +53,9 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId, restauran
   };
 
   const handleClose = () => {
-    onClose();
+    if (!isPlacingOrder) {
+        onClose();
+    }
   };
 
   return (

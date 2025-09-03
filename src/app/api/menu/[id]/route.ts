@@ -1,6 +1,7 @@
+// src/app/api/menu/[id]/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { get } from "http";
 
 // Helper function to verify ownership
 async function verifyOwnership(supabase: any, menuItemId: string): Promise<boolean> {
@@ -15,8 +16,17 @@ async function verifyOwnership(supabase: any, menuItemId: string): Promise<boole
 
   if (error || !menuItem) return false;
 
-  // Assumes restaurant_id in menu_items is the same as the user's ID
-  return menuItem.restaurant_id === user.id;
+  // Assumes restaurant_id in menu_items corresponds to the user's ID
+  // A better approach would be to join with the restaurants table to check user_id.
+  const { data: restaurant } = await supabase
+    .from('restaurants')
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!restaurant) return false;
+
+  return menuItem.restaurant_id === restaurant.id;
 }
 
 
@@ -25,7 +35,7 @@ export async function GET(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
   const { data, error } = await supabase
     .from("menu_items")
@@ -45,9 +55,9 @@ export async function PUT(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
   
-  // FIXED: Authorization check
+  // Authorization check
   const isOwner = await verifyOwnership(supabase, params.id);
   if (!isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -81,9 +91,9 @@ export async function DELETE(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
-  // FIXED: Authorization check
+  // Authorization check
   const isOwner = await verifyOwnership(supabase, params.id);
   if (!isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });

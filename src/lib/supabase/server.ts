@@ -1,10 +1,12 @@
+// src/lib/supabase/server.ts
+
 import { createServerClient as createSupabaseServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 // This is the definitive, correct, and type-safe version for Server Components and API Routes.
-export async function createServerClient() {
-  // FIXED: The cookies() function MUST be awaited.
-  const cookieStore = await cookies()
+// FIXED: The function is now synchronous, and cookies() is called directly without await.
+export function createServerClient() {
+  const cookieStore = cookies()
 
   return createSupabaseServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

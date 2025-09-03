@@ -1,20 +1,31 @@
+// src/app/api/orders/recent/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 export async function GET() {
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
-  // FIXED: Add authorization check
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  
+  // Find the restaurant for this user
+  const { data: restaurant, error: restaurantError } = await supabase
+    .from("restaurants")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (restaurantError || !restaurant) {
+    return NextResponse.json({ error: "Restaurant not found for this user" }, { status: 404 });
   }
 
   const { data, error } = await supabase
     .from("orders")
     .select("id, status, total_amount, created_at, track_code")
-    // FIXED: Filter orders by the logged-in restaurant's user_id
-    .eq("restaurant_id", user.id)
+    .eq("restaurant_id", restaurant.id) // FIXED: Filter by restaurant_id
     .order("created_at", { ascending: false })
     .limit(10);
 

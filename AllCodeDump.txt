@@ -39,39 +39,29 @@ export async function POST(req: Request) {
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\create-table\route.ts -----
 
+// File: app/api/create-table/route.ts
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
-  const supabase = await createServerClient();
-
-  // First, get the current user's session to ensure they are authenticated
-  const { data: { session } } = await supabase.auth.getSession();
-
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const { restaurantId, tableNumber } = await req.json();
 
     // Call your Supabase Edge Function
-    const res = await fetch(
-      "https://melkeknoniqnnlanhobo.functions.supabase.co/generate-table-qr",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // FIXED: Pass the user's actual access token (JWT) to the Edge Function
-          "Authorization": `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ restaurantId, tableNumber }),
-      }
-    );
+const res = await fetch(
+  "https://melkeknoniqnnlanhobo.functions.supabase.co/generate-table-qr",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`, 
+      // or SUPABASE_SERVICE_ROLE_KEY if you want more power (be careful!)
+    },
+    body: JSON.stringify({ restaurantId, tableNumber }),
+  }
+);
 
     if (!res.ok) {
       const errorText = await res.text();
-      // Forward the error from the Supabase function
       return NextResponse.json(
         { error: `Supabase function failed: ${errorText}` },
         { status: res.status }
@@ -79,8 +69,8 @@ export async function POST(req: Request) {
     }
 
     const data = await res.json();
-    return NextResponse.json({ success: true, ...data });
 
+    return NextResponse.json({ success: true, ...data });
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Unknown error" },
@@ -599,115 +589,92 @@ export async function PUT(req: Request) {
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\push\notify\route.ts -----
 
-import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
-import webpush from "web-push";
+import { NextResponse } from 'next/server';
+import webpush from 'web-push';
+import { createServerClient } from '@/lib/supabase/server';
 
-// Load VAPID keys
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY!;
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@example.com';
 
-webpush.setVapidDetails(
-  "mailto:admin@quickbiteqr.online",
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
+webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
+/**
+ * POST body: { orderId, title, body, url? }
+ * Sends to all subscriptions bound to the order
+ */
 export async function POST(req: Request) {
-  const supabase = await createServerClient();
-  // FIXED: Check for an authenticated restaurant user before allowing notifications to be sent.
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const { orderId, title, body, url } = await req.json();
+    if (!orderId) return NextResponse.json({ error: 'orderId required' }, { status: 400 });
 
-  const { orderId, title, message } = await req.json();
+    const supabase = await createServerClient();
+    const { data: subs, error } = await supabase
+      .from('web_push_subscriptions')
+      .select('*')
+      .eq('order_id', orderId);
 
-  // Get all subscriptions for this order
-  const { data: subs, error } = await supabase
-    .from("web_push_subscriptions")
-    .select("*")
-    .eq("order_id", orderId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  if (error) {
-    console.error("Error fetching subscriptions:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+    const payload = JSON.stringify({ title: title || 'Order update', body: body || '', data: { url } });
 
-  if (!subs || subs.length === 0) {
-    return NextResponse.json({ success: false, message: "No subscribers for this order" });
-  }
-
-  const payload = JSON.stringify({
-    title: title || "QuickBite QR",
-    body: message || "New order update",
-  });
-
-  let successCount = 0;
-
-  await Promise.all(
-    subs.map(async (sub) => {
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth,
-            },
-          },
-          payload
-        );
-        successCount++;
-      } catch (err: any) {
-        console.error("Push failed:", err?.message || err);
-        // Cleanup dead subscription
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          await supabase.from("web_push_subscriptions").delete().eq("id", sub.id);
+    const results = await Promise.allSettled(
+      (subs || []).map(async (s) => {
+        const subscription = {
+          endpoint: s.endpoint,
+          keys: { p256dh: s.p256dh, auth: s.auth }
+        } as any;
+        try {
+          await webpush.sendNotification(subscription, payload);
+          return { ok: true };
+        } catch (err: any) {
+          // If gone, consider deleting the subscription
+          if (err?.statusCode === 404 || err?.statusCode === 410) {
+            await supabase.from('web_push_subscriptions').delete().eq('endpoint', s.endpoint);
+          }
+          return { ok: false, error: err?.message };
         }
-      }
-    })
-  );
+      })
+    );
 
-  return NextResponse.json({ success: true, delivered: successCount });
+    return NextResponse.json({ ok: true, results });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Unknown error' }, { status: 500 });
+  }
 }
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\push\subscribe\route.ts -----
 
-import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase/server';
 
 export async function POST(req: Request) {
-  const supabase = createServerClient();
-  const body = await req.json();
+  try {
+    const { orderId, subscription } = await req.json();
+    if (!orderId || !subscription?.endpoint) {
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    }
 
-  // FIXED: Removed user auth check. Subscriptions are tied to an orderId, which is secure enough for this public action.
-  // The 'user_id' can be left null for guest customers.
+    const p256dh = subscription.keys?.p256dh;
+    const auth = subscription.keys?.auth;
 
-  const { orderId, subscription } = body;
-  if (!subscription?.endpoint || !subscription?.keys) {
-    return NextResponse.json({ error: "Invalid subscription data" }, { status: 400 });
+    const supabase = await createServerClient();
+    // Upsert by endpoint to avoid duplicates
+    const { error } = await supabase
+      .from('web_push_subscriptions')
+      .upsert({
+        order_id: orderId,
+        endpoint: subscription.endpoint,
+        p256dh, auth
+      }, { onConflict: 'endpoint' });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Unknown error' }, { status: 500 });
   }
-
-  const { endpoint, keys } = subscription;
-
-  const { error } = await supabase.from("web_push_subscriptions").upsert(
-    {
-      // user_id will be null for customers
-      order_id: orderId || null,
-      endpoint,
-      p256dh: keys.p256dh,
-      auth: keys.auth,
-    },
-    { onConflict: "endpoint" } // Update the order_id if the endpoint already exists
-  );
-
-  if (error) {
-    console.error("Failed to save subscription:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ success: true });
 }
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\tables\[id]\route.ts -----
@@ -908,17 +875,11 @@ export async function POST(req: Request) {
 
 // src/app/api/uploadthing/core.ts
 import { createUploadthing, type FileRouter } from "uploadthing/next";
-import { createServerClient } from "@/lib/supabase/server";
-import { cookies } from "next/headers";
 
 const f = createUploadthing();
 
-// FIXED: Implement real authentication using Supabase server client
-const auth = async (_req: Request) => {
-  const supabase = createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  return user ? { id: user.id } : null;
-};
+// This is a fake user ID - in a real app, you'd get this from your auth solution
+const auth = (req: Request) => ({ id: "fake-user-id" }); 
 
 // FileRouter for your app, can contain multiple FileRoutes
 export const ourFileRouter = {
@@ -928,6 +889,7 @@ export const ourFileRouter = {
     .middleware(async ({ req }) => {
       // This code runs on your server before upload
       const user = await auth(req);
+    
 
       // If you throw, the user will not be able to upload
       if (!user) throw new Error("Unauthorized");
@@ -1226,7 +1188,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   totalPrice: () => get().items.reduce((total, item) => total + item.price * item.quantity, 0),
 }));
 
------ D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\customer-end-pages\[restaurantSlug]\orders\[code]\page.tsx -----
+----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\customer-end-pages\[restaurantSlug]\orders\[Code]\page.tsx -----
 
 import { createServerClient } from '@/lib/supabase/server';
 import StatusClient from './StatusClient';
@@ -1293,7 +1255,7 @@ export default async function OrderTrackPage({ params }: PageProps) {
   );
 }
 
------ D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\customer-end-pages\[restaurantSlug]\orders\[code]\StatusClient.tsx -----
+----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\customer-end-pages\[restaurantSlug]\orders\[Code]\StatusClient.tsx -----
 
 'use client';
 
@@ -1616,220 +1578,346 @@ export default async function RestaurantLandingPage({ params }: { params: { rest
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\menu\add\page.tsx -----
 
-// src/app/dashboard/menu/add/page.tsx
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMenuItems } from '@/lib/hooks/useMenuItems';
-import { useMyRestaurant } from '@/lib/hooks/useMyRestaurant';
-import MenuItemForm from '@/components/menu/MenuItemForm';
-import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
-import { MenuItem } from '@/types/menu';
-
-export default function AddMenuItemPage() {
-Â  const router = useRouter();
-Â  const { addMenuItem } = useMenuItems();
-Â  const { restaurant, loading: restaurantLoading } = useMyRestaurant();
-Â  const [isSubmitting, setIsSubmitting] = useState(false);
-
-Â  const handleSubmit = async (formData: Omit<MenuItem, 'id' | 'restaurant_id' | 'created_at' | 'updated_at'>) => {
-Â  Â  if (!restaurant) {
-Â  Â  Â  toast.error("Cannot add item: Restaurant not found.");
-Â  Â  Â  return;
-Â  Â  }
-
-Â  Â  setIsSubmitting(true);
-Â  Â  try {
-Â  Â  Â  await addMenuItem(formData, restaurant.id);
-Â  Â  Â  toast.success(`Item "${formData.name}" created successfully!`);
-Â  Â  Â  router.push('/dashboard/menu_items');
-Â  Â  } catch (error: any) {
-Â  Â  Â  toast.error(`Failed to create item: ${error.message}`);
-Â  Â  } finally {
-Â  Â  Â  setIsSubmitting(false);
-Â  Â  }
-Â  };
-
-Â  if (restaurantLoading) {
-Â  Â  return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-Â  }
-
-Â  return (
-Â  Â  <div className="max-w-4xl mx-auto p-4 sm:p-8">
-Â  Â  Â  <h1 className="text-3xl font-bold text-gray-800 mb-6">Add New Menu Item</h1>
-Â  Â  Â  <MenuItemForm
-Â  Â  Â  Â  onSubmit={handleSubmit}
-Â  Â  Â  Â  isSubmitting={isSubmitting}
-Â  Â  Â  Â  onCancel={() => router.back()}
-Â  Â  Â  />
-Â  Â  </div>
-Â  );
-}
-
------ D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\menu\edit\[id]\page.tsx -----
-
-// src/app/dashboard/menu/edit/[id]/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useMenuItems } from '@/lib/hooks/useMenuItems';
 import MenuItemForm from '@/components/menu/MenuItemForm';
-import { toast } from 'sonner';
+import { getMyRestaurant } from '@/lib/api/restaurants';
+import { Loader2 } from 'lucide-react';
+
+export default function AddMenuItemPage() {
+  const router = useRouter();
+  const { addMenuItem } = useMenuItems();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // State to hold the user's restaurant ID
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch the restaurant ID when the page loads
+  useEffect(() => {
+    const loadRestaurant = async () => {
+      const restaurant = await getMyRestaurant();
+      if (restaurant) {
+        setRestaurantId(restaurant.id);
+      } else {
+        console.error('No restaurant found for this user.');
+        // You could redirect or show an error toast here.
+      }
+      setIsLoading(false);
+    };
+    loadRestaurant();
+  }, []);
+
+  // NOTE: photo_url matches DB; available will be defaulted here
+  const handleSubmit = async (data: {
+    name: string;
+    description: string;
+    price: number;
+    photo_url?: string;
+    available?: boolean; // allow coming from form later if you add a checkbox
+  }) => {
+    if (!restaurantId) {
+      alert('Error: Could not find your restaurant ID. Please try logging in again.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const newItemData = {
+        ...data,
+        category: 'mains' as const, // Default category
+        available: data.available ?? true, // <-- REQUIRED by NewMenuItem
+      };
+
+      // Pass both the form data and the fetched restaurantId to the hook
+      await addMenuItem(newItemData, restaurantId);
+      router.push('/dashboard/menu');
+    } catch (error) {
+      console.error('Failed to add menu item:', error);
+      // Optionally, show an error toast/message to the user on the form
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Show a loading spinner while fetching the restaurant ID
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 md:p-8">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-md p-6 mb-8 flex items-center">
+          <button
+            onClick={() => router.back()}
+            className="p-2 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors mr-4"
+            aria-label="Go back"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Add New Menu Item</h1>
+            <p className="text-gray-700">Create a new item for your restaurant menu.</p>
+          </div>
+        </div>
+
+        <MenuItemForm
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+          onCancel={() => router.push('/dashboard/menu')}
+        />
+      </div>
+    </div>
+  );
+}
+
+----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\menu\[id]\edit\page.tsx -----
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useMenuItems } from '@/lib/hooks/useMenuItems';
+import MenuItemForm from '@/components/menu/MenuItemForm';
 import { Loader2 } from 'lucide-react';
 import { MenuItem } from '@/types/menu';
-import { supabase } from '@/lib/supabase/client';
 
 export default function EditMenuItemPage() {
-Â  const router = useRouter();
-Â  const params = useParams();
-Â  const { id } = params;
-Â  const { updateMenuItem } = useMenuItems();
+  const params = useParams();
+  const router = useRouter();
+  // 1. Get the loading state from the hook
+  const { menuItems, updateMenuItem, loading: menuItemsLoading } = useMenuItems();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [menuItem, setMenuItem] = useState<MenuItem | null>(null);
+  const [isPageLoading, setIsPageLoading] = useState(true);
 
-Â  const [item, setItem] = useState<MenuItem | null>(null);
-Â  const [loading, setLoading] = useState(true);
-Â  const [isSubmitting, setIsSubmitting] = useState(false);
+  const itemId = parseInt(params.id as string);
 
-Â  useEffect(() => {
-Â  Â  const fetchItem = async () => {
-Â  Â  Â  if (!id || Array.isArray(id)) return;
-Â  Â  Â  setLoading(true);
-Â  Â  Â  const { data, error } = await supabase
-Â  Â  Â  Â  .from('menu_items')
-Â  Â  Â  Â  .select('*')
-Â  Â  Â  Â  .eq('id', id)
-Â  Â  Â  Â  .single();
+  // 2. This effect now waits for the data to finish loading
+  useEffect(() => {
+    // Only proceed if the main loading is done and we have items
+    if (!menuItemsLoading && menuItems.length > 0) {
+      const itemToEdit = menuItems.find(item => item.id === itemId);
+      if (itemToEdit) {
+        setMenuItem(itemToEdit);
+      }
+      // We are done with the page's initial load
+      setIsPageLoading(false);
+    } 
+    // Handle the case where loading finishes but there are no items
+    else if (!menuItemsLoading) {
+      setIsPageLoading(false);
+    }
+  }, [menuItems, itemId, menuItemsLoading]); // Added menuItemsLoading as a dependency
 
-Â  Â  Â  if (error || !data) {
-Â  Â  Â  Â  toast.error("Could not find the menu item to edit.");
-Â  Â  Â  Â  router.push('/dashboard/menu_items');
-Â  Â  Â  } else {
-Â  Â  Â  Â  setItem(data);
-Â  Â  Â  }
-Â  Â  Â  setLoading(false);
-Â  Â  };
-Â  Â  fetchItem();
-Â  }, [id, router]);
+  const handleSubmit = async (data: Omit<MenuItem, 'id' | 'restaurant_id' | 'created_at'>) => {
+    if (!menuItem) return;
 
-Â  const handleSubmit = async (formData: Omit<MenuItem, 'id' | 'restaurant_id' | 'created_at' | 'updated_at'>) => {
-Â  Â  setIsSubmitting(true);
-Â  Â  try {
-Â  Â  Â  await updateMenuItem(Number(id), formData);
-Â  Â  Â  toast.success(`Item "${formData.name}" updated successfully!`);
-Â  Â  Â  router.push('/dashboard/menu_items');
-Â  Â  } catch (error: any) {
-Â  Â  Â  toast.error(`Failed to update item: ${error.message}`);
-Â  Â  } finally {
-Â  Â  Â  setIsSubmitting(false);
-Â  Â  }
-Â  };
+    setIsSubmitting(true);
+    try {
+      await updateMenuItem(menuItem.id, data);
+      router.push('/dashboard/menu');
+    } catch (error) {
+      console.error('Failed to update menu item:', error);
+      setIsSubmitting(false);
+    }
+  };
 
-Â  if (loading || !item) {
-Â  Â  return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-Â  }
+  // 3. Show a loading spinner while the page is figuring things out
+  if (isPageLoading) {
+    return (
+      <div className="flex items-center justify-center h-full p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
 
-Â  return (
-Â  Â  <div className="max-w-4xl mx-auto p-4 sm:p-8">
-Â  Â  Â  <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit: {item.name}</h1>
-Â  Â  Â  <MenuItemForm
-Â  Â  Â  Â  initialData={item}
-Â  Â  Â  Â  onSubmit={handleSubmit}
-Â  Â  Â  Â  isSubmitting={isSubmitting}
-Â  Â  Â  Â  onCancel={() => router.back()}
-Â  Â  Â  />
-Â  Â  </div>
-Â  );
+  // 4. This "not found" message will now only show after everything has loaded
+  if (!menuItem) {
+    return <div className="p-8 text-center text-xl text-gray-700">Menu item not found.</div>;
+  }
+
+  return (
+    <div className="p-4 md:p-8">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-md p-6 mb-8 flex items-center">
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors mr-4"
+              aria-label="Go back"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Edit Menu Item</h1>
+              <p className="text-gray-700">Update the details for this menu item.</p>
+            </div>
+        </div>
+
+        <MenuItemForm
+          initialData={menuItem}
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+          onCancel={() => router.push('/dashboard/menu')}
+        />
+      </div>
+    </div>
+  );
 }
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\menu\page.tsx -----
 
 // src/app/dashboard/menu/page.tsx
-"use client";
+'use client';
 
-import { useState, useMemo } from "react";
-import Link from "next/link";
-import { useMenuItems } from "@/lib/hooks/useMenuItems";
-import MenuItemCard from "@/components/menu/MenuItemCard";
-import DeleteConfirmation from "@/components/menu/DeleteConfirmation";
-import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Search, Plus, Loader2 } from "lucide-react";
-import { MenuItem } from "@/types/menu";
+import { useState } from 'react';
+import Link from 'next/link';
+import { useMenuItems } from '@/lib/hooks/useMenuItems';
+import { MenuItem } from '@/types/menu';
+import MenuItemCard from '@/components/menu/MenuItemCard';
+import DeleteConfirmation from '@/components/menu/DeleteConfirmation';
 
-export default function MenuItemsPage() {
-  const { menuItems, loading, error, deleteMenuItem } = useMenuItems();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
+export default function MenuPage() {
+    const { menuItems, loading, error, deleteMenuItem } = useMenuItems();
+    const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredItems = useMemo(() => {
-    return menuItems.filter((item) =>
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    const searchedItems = menuItems.filter(item =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchTerm, menuItems]);
 
-  const handleDeleteClick = (item: MenuItem) => {
-    setItemToDelete(item);
-    setDeleteModalOpen(true);
-  };
+    const handleDelete = async () => {
+        if (itemToDelete) {
+            await deleteMenuItem(itemToDelete.id);
+            setItemToDelete(null);
+        }
+    };
+    const averagePrice = menuItems.length > 0
+        ? (menuItems.reduce((sum, item) => sum + item.price, 0) / menuItems.length).toFixed(2)
+        : '0.00';
 
-  const confirmDelete = async () => {
-    if (!itemToDelete) return;
-    try {
-      await deleteMenuItem(itemToDelete.id);
-      toast.success(`"${itemToDelete.name}" was deleted successfully.`);
-    } catch (err) {
-      toast.error("Failed to delete the item.");
-    } finally {
-      setDeleteModalOpen(false);
-      setItemToDelete(null);
-    }
-  };
-
-  return (
-    <>
-      <div className="min-h-[80vh] px-4 sm:px-6 lg:px-8 py-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-slate-800">Menu Items</h1>
-            <Link href="/dashboard/menu/add">
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add New Item
-              </Button>
-            </Link>
-          </div>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="relative flex-1 max-w-md">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <Input placeholder="Search menu items..." className="pl-9" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              </div>
-            </CardContent>
-          </Card>
-
-          {loading ? (
-            <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-slate-500" /></div>
-          ) : error ? (
-            <div className="text-red-500 bg-red-50 p-4 rounded-lg">{error}</div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {filteredItems.map((item) => (
-                <MenuItemCard key={item.id} item={item} onEdit={`/dashboard/menu/edit/${item.id}`} onDelete={() => handleDeleteClick(item)} />
-              ))}
+    // **FIX**: The actual JSX for the loading state is now included.
+    if (loading) return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-teal-100 p-8 flex items-center justify-center">
+            <div className="text-center">
+                <div className="w-16 h-16 border-4 border-indigo-500 border-l-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-indigo-800">Loading menu items...</p>
             </div>
-          )}
         </div>
-      </div>
-      <DeleteConfirmation isOpen={isDeleteModalOpen} onClose={() => setDeleteModalOpen(false)} onConfirm={confirmDelete} itemName={itemToDelete?.name || ""} />
-    </>
-  );
+    );
+
+    // **FIX**: The actual JSX for the error state is now included.
+    if (error) return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-teal-100 p-8 flex items-center justify-center">
+            <div className="bg-white rounded-xl p-6 shadow-lg max-w-md w-full text-center">
+                <div className="text-red-500 text-5xl mb-4">âš ï¸</div>
+                <h2 className="text-xl font-bold text-gray-800 mb-2">Error Loading Menu</h2>
+                <p className="text-gray-600 mb-4">{error}</p>
+                <button
+                    onClick={() => window.location.reload()}
+                    className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition-colors"
+                >
+                    Try Again
+                </button>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-teal-100 p-4 md:p-8">
+            <div className="max-w-7xl mx-auto">
+                <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-800">Menu Management</h1>
+                            <p className="text-gray-600 mt-1">Manage your restaurant menu items</p>
+                        </div>
+                        <Link
+                            href="/dashboard/menu/add"
+                            className="flex items-center bg-gradient-to-r from-indigo-500 to-blue-500 text-white px-6 py-3 rounded-xl hover:from-indigo-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" /></svg>
+                            Add New Item
+                        </Link>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
+                    <div className="relative">
+                        <input
+                            type="text" placeholder="Search menu items..."
+                            value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full px-4 py-3 pl-12 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 absolute left-4 top-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+                    <div className="bg-white rounded-2xl shadow-md p-5 flex items-center">
+                        <div className="rounded-xl bg-indigo-100 p-3 mr-4"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg></div>
+                        <div><p className="text-sm text-gray-500">Total Items</p><p className="text-2xl font-bold text-gray-800">{menuItems.length}</p></div>
+                    </div>
+                    <div className="bg-white rounded-2xl shadow-md p-5 flex items-center">
+                        <div className="rounded-xl bg-emerald-100 p-3 mr-4"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
+                        <div><p className="text-sm text-gray-500">Avg. Price</p><p className="text-2xl font-bold text-gray-800">${averagePrice}</p></div>
+                    </div>
+                </div>
+
+                <div>
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold text-gray-800">Menu Items</h2>
+                        <p className="text-gray-600">Showing {searchedItems.length} of {menuItems.length} items</p>
+                    </div>
+                    {searchedItems.length === 0 ? (
+                        <div className="bg-white rounded-2xl shadow-md p-12 text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <h3 className="text-xl font-medium text-gray-700 mb-2">No menu items found</h3>
+                            <p className="text-gray-500 mb-6">{searchQuery ? 'Try a different search term' : 'Get started by adding your first menu item'}</p>
+                            <Link href="/dashboard/menu/add" className="inline-flex items-center bg-gradient-to-r from-indigo-500 to-blue-500 text-white px-6 py-3 rounded-xl hover:from-indigo-600 hover:to-blue-600 transition-all"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" /></svg> Add New Item</Link>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {searchedItems.map(item => (
+                                <MenuItemCard
+                                    key={item.id}
+                                    item={item}
+                                    onEdit={`/dashboard/menu/${item.id}/edit`}
+                                    onDelete={() => setItemToDelete(item)}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <DeleteConfirmation
+                isOpen={!!itemToDelete}
+                onClose={() => setItemToDelete(null)}
+                onConfirm={handleDelete}
+                itemName={itemToDelete?.name || ''}
+            />
+        </div>
+    );
 }
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\menu_items\page.tsx -----
@@ -1921,281 +2009,92 @@ export default function MenuItemsPage() {
 Â  );
 }
 
------ D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\orders\LiveOrders.tsx -----
+----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\orders\page.ts -----
 
-"use client";
+// File: D:\01--PROJECTS--APPROTECH\commit-bfec44d\src\app\dashboard\orders\page.tsx
+import * as entry from '@/app/dashboard/orders/page.js'
+import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
-import React, { useEffect, useMemo, useState } from "react";
-import useSWR from 'swr';
-import LiveOrdersComponent from "@/components/LiveOrdersComponent";
-import { Input } from "@/components/ui/input";
-import { AlertTriangle } from "lucide-react";
-import { supabase } from "@/lib/supabase/client";
-import { Order, OrderStatus } from "./OrderTypes";
+type TEntry = typeof import('@/app/dashboard/orders/page.js')
 
-// FIXED: Add { credentials: 'include' } to the fetch call
-const fetcher = async (url: string): Promise<Order[]> => {
-  const res = await fetch(url, { credentials: 'include' });
+type SegmentParams<T extends Object = any> = T extends Record<string, any>
+  ? { [K in keyof T]: T[K] extends string ? string | string[] | undefined : never }
+  : T
 
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({ error: 'An unknown error occurred' }));
-    throw new Error(errorBody.error || 'Failed to fetch data.');
-  }
-  return res.json();
-};
+// Check that the entry is a valid entry
+checkFields<Diff<{
+  default: Function
+  config?: {}
+  generateStaticParams?: Function
+  revalidate?: RevalidateRange<TEntry> | false
+  dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
+  dynamicParams?: boolean
+  fetchCache?: 'auto' | 'force-no-store' | 'only-no-store' | 'default-no-store' | 'default-cache' | 'only-cache' | 'force-cache'
+  preferredRegion?: 'auto' | 'global' | 'home' | string | string[]
+  runtime?: 'nodejs' | 'experimental-edge' | 'edge'
+  maxDuration?: number
+  
+  metadata?: any
+  generateMetadata?: Function
+  viewport?: any
+  generateViewport?: Function
+  experimental_ppr?: boolean
+  
+}, TEntry, ''>>()
 
 
-const LiveOrders = () => {
-  // The useSWR hook will now use the corrected fetcher
-  const { data: liveOrders, error, mutate, isLoading } = useSWR<Order[]>('/api/orders', fetcher);
+// Check the prop type of the entry function
+checkFields<Diff<PageProps, FirstArg<TEntry['default']>, 'default'>>()
 
-  // ... The rest of this file is correct and does not need to be changed ...
-  const [activeStatus, setActiveStatus] = useState<OrderStatus | "All">("All");
-  const [search, setSearch] = useState("");
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('live-orders-page')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        mutate();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [mutate]);
-
-    const filteredOrders = useMemo((): Order[] => {
-    if (!Array.isArray(liveOrders)) return [];
-    
-    let orders = liveOrders.filter(o => o.status !== 'complete' && o.status !== 'cancelled');
-    
-    if (activeStatus !== "All") {
-      orders = orders.filter((o) => o.status === activeStatus);
-    }
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      orders = orders.filter((order) =>
-        order.track_code.toLowerCase().includes(q) ||
-        (order.tables?.table_number || "").toLowerCase().includes(q) ||
-        order.order_items.some(item => item.menu_items?.name.toLowerCase().includes(q))
-      );
-    }
-    return orders;
-  }, [liveOrders, activeStatus, search]);
-
-  if (isLoading) {
-    return <div className="flex items-center justify-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-    </div>;
-  }
-
-  return (
-    <div>
-      <div className="mb-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Live Orders</h2>
-          {error && (
-            <div className="mt-2 flex items-center gap-2 bg-red-100 border-red-300 text-red-700 px-3 py-2 rounded-md text-sm">
-              <AlertTriangle className="h-4 w-4" />
-              <span>{error.message}</span>
-            </div>
-          )}
-        </div>
-        <Input
-          placeholder="Search by track code, table, or item..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-md"
-        />
-      </div>
-
-      <LiveOrdersComponent
-        filteredOrders={filteredOrders}
-        fetchLiveOrders={mutate}
-      />
-    </div>
-  );
-};
-
-export default LiveOrders;
-
------ D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\orders\OrderHistory.tsx -----
-
-"use client";
-
-import { useMemo, useState } from "react";
-import useSWR from "swr";
-import Link from "next/link";
-// ... other imports
-import { Order } from "./OrderTypes";
-
-// FIXED: Add { credentials: 'include' } to the fetcher
-const fetcher = async (url: string) => {
-    const res = await fetch(url, { credentials: 'include' });
-    if (!res.ok) {
-        const errorBody = await res.json();
-        throw new Error(errorBody.error || 'Failed to fetch orders');
-    }
-    return res.json();
-};
-
-export default function OrderHistoryPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("All");
-
-  const { data: orders = [], isLoading } = useSWR<Order[]>("orders-history", () => fetcher("/api/orders"), {
-    revalidateOnFocus: true,
-    dedupingInterval: 10000,
-  });
-
-  // ... The rest of this file is correct and does not need to be changed ...
-  const filteredOrders = useMemo(() => {
-    let relevantOrders = orders.filter((order: Order) => order.status === 'complete' || order.status === 'cancelled');
-
-    return relevantOrders.filter((order: Order) => {
-      const searchMatch =
-        order.track_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.tables?.table_number?.toString().toLowerCase().includes(searchTerm.toLowerCase());
-
-      const statusMatch =
-        selectedStatus === "All" || order.status === selectedStatus;
-
-      return searchMatch && statusMatch;
-    });
-  }, [orders, searchTerm, selectedStatus]);
-
-  // ... JSX for the component
-  return (
-      <div className="min-h-[80vh] px-4 sm:px-6 lg:px-8 py-8">
-        {/* Component JSX goes here, no changes needed */}
-      </div>
-  );
+// Check the arguments and return type of the generateMetadata function
+if ('generateMetadata' in entry) {
+  checkFields<Diff<PageProps, FirstArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
+  checkFields<Diff<ResolvingMetadata, SecondArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
 }
 
------ D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\orders\OrderTypes.ts -----
-
-// These are the types that match the data coming from your API
-
-export type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "complete" | "cancelled";
-
-// Represents a single item within an order
-export interface OrderItem {
-  id: string;
-  quantity: number;
-  price: number;
-  // This shape depends on your Supabase select query, adjust if needed
-  menu_items: { 
-    name: string;
-  } | null;
+// Check the arguments and return type of the generateViewport function
+if ('generateViewport' in entry) {
+  checkFields<Diff<PageProps, FirstArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
+  checkFields<Diff<ResolvingViewport, SecondArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
 }
 
-// Represents a full order, which contains multiple items
-export interface Order {
-  id: string;
-  created_at: string;
-  status: OrderStatus;
-  track_code: string;
-  total_amount: number;
-  // These come from the joins in your API route
-  tables: {
-    table_number: string;
-  } | null;
-  restaurants: {
-    restaurant_name: string;
-  } | null;
-  order_items: OrderItem[];
+// Check the arguments and return type of the generateStaticParams function
+if ('generateStaticParams' in entry) {
+  checkFields<Diff<{ params: SegmentParams }, FirstArg<MaybeField<TEntry, 'generateStaticParams'>>, 'generateStaticParams'>>()
+  checkFields<Diff<{ __tag__: 'generateStaticParams', __return_type__: any[] | Promise<any[]> }, { __tag__: 'generateStaticParams', __return_type__: ReturnType<MaybeField<TEntry, 'generateStaticParams'>> }>>()
 }
 
------ D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\orders\OrderTypes.tsx -----
+export interface PageProps {
+  params?: Promise<SegmentParams>
+  searchParams?: Promise<any>
+}
+export interface LayoutProps {
+  children?: React.ReactNode
 
-// src/app/dashboard/orders/OrderTypes.ts
-
-// These are the types that match the data coming from your API
-export type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "complete" | "cancelled";
-
-// Represents a single item within an order
-export interface OrderItem {
-  id: string;
-  quantity: number;
-  price: number;
-  // This shape depends on your Supabase select query, adjust if needed
-  menu_items: { 
-    name: string;
-  } | null;
+  params?: Promise<SegmentParams>
 }
 
-// Represents a full order, which contains multiple items
-export interface Order {
-  id: string;
-  created_at: string;
-  status: OrderStatus;
-  track_code: string;
-  total_amount: number;
-  // These come from the joins in your API route
-  tables: {
-    table_number: string;
-  } | null;
-  restaurants: {
-    restaurant_name: string;
-  } | null;
-  order_items: OrderItem[];
-}
+// =============
+// Utility types
+type RevalidateRange<T> = T extends { revalidate: any } ? NonNegative<T['revalidate']> : never
 
------ D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\orders\page.tsx -----
+// If T is unknown or any, it will be an empty {} type. Otherwise, it will be the same as Omit<T, keyof Base>.
+type OmitWithTag<T, K extends keyof any, _M> = Omit<T, K>
+type Diff<Base, T extends Base, Message extends string = ''> = 0 extends (1 & T) ? {} : OmitWithTag<T, keyof Base, Message>
 
-// src/app/dashboard/orders/page.tsx
-import React from 'react';
-import LiveOrders from './LiveOrders';
-import OrderHistory from './OrderHistory';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+type FirstArg<T extends Function> = T extends (...args: [infer T, any]) => any ? unknown extends T ? any : T : never
+type SecondArg<T extends Function> = T extends (...args: [any, infer T]) => any ? unknown extends T ? any : T : never
+type MaybeField<T, K extends string> = T extends { [k in K]: infer G } ? G extends Function ? G : never : never
 
-export default function Orders() {
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-      {/* Page header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
-        <p className="text-sm text-muted-foreground">
-          Monitor live orders and browse historical activity.
-        </p>
-      </div>
 
-      <Separator className="mb-6" />
 
-      {/* Content grid */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        {/* Live Orders */}
-        <Card className="shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Live Orders</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {/* Make inner content scroll on small screens while keeping the card tidy */}
-            <div className="max-h-[70vh] overflow-auto px-4 pb-4">
-              <LiveOrders />
-            </div>
-          </CardContent>
-        </Card>
+function checkFields<_ extends { [k in keyof any]: never }>() {}
 
-        {/* Order History */}
-        <Card className="shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Order History</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="max-h-[70vh] overflow-auto px-4 pb-4">
-              <OrderHistory />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
+// https://github.com/sindresorhus/type-fest
+type Numeric = number | bigint
+type Zero = 0 | 0n
+type Negative<T extends Numeric> = T extends Zero ? never : `${T}` extends `-${string}` ? T : never
+type NonNegative<T extends Numeric> = T extends Zero ? T : Negative<T> extends never ? T : '__invalid_negative_number__'
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\profile\page.tsx -----
 
@@ -2293,6 +2192,8 @@ export default function RestaurantProfilePage() {
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\tables\add\page.tsx -----
 
+// src/app/dashboard/tables/add/page.tsx
+
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -2300,23 +2201,23 @@ import { generateQR } from '@/lib/api/generateQR';
 import { supabase } from '@/lib/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2 } from 'lucide-react';
-import QrCodeDisplay from '@/components/tables/QrCodeDisplay';
-import { Restaurant } from '@/types/restaurant'; // Import the type
+import { Restaurant } from '@/lib/types/types'; // Using a shared type
 
 export default function AddTablePage() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const router = useRouter();
   const [loading, setLoading] = useState<boolean>(true);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  // FIX: Table identifier is a string, not just a number
   const [tableIdentifier, setTableIdentifier] = useState<string>('');
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
-  const [showQRCode, setShowQRCode] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchRestaurant = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setLoading(false);
+        // Optionally, redirect to login
         router.push('/login');
         return;
       }
@@ -2337,70 +2238,43 @@ export default function AddTablePage() {
     fetchRestaurant();
   }, [router]);
 
+  // FIX: Make the handler async and use state directly
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!restaurant || !tableIdentifier.trim()) {
-      alert("Restaurant data is missing or table name is empty.");
-      return;
+        alert("Restaurant data is missing or table name is empty.");
+        return;
     }
 
     setIsSubmitting(true);
     setGeneratedUrl(null);
-    setShowQRCode(false);
 
     try {
+      // The API route calls the edge function to do all the work
       const qrUrl = await generateQR(restaurant.id, tableIdentifier);
       setGeneratedUrl(qrUrl);
-      setShowQRCode(true); // Show the QR code section on success
+      alert(`Successfully created table "${tableIdentifier}"!`);
+      // You can now download the QR or navigate away
+      router.push('/dashboard/tables');
     } catch (error: any) {
       console.error(error);
-      // FIXED: Corrected template literal for the alert message
       alert(`Failed to create table: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleDownloadQR = () => {
+    if (!generatedUrl) return;
+    const link = document.createElement("a");
+    link.href = generatedUrl;
+    link.download = `table-${tableIdentifier.replace(/\s+/g, '-')}.png`;
+    link.click();
+  };
+
   if (loading) return <Skeleton className="h-64 w-full" />;
   if (!restaurant) return <p className="text-red-600">No restaurant profile found.</p>;
 
-  // If a QR code has been generated, show the success view
-  if (showQRCode && generatedUrl) {
-    return (
-        <div className="p-4 sm:p-8">
-            <div className="max-w-lg mx-auto text-center">
-                 <div className="mt-8 bg-white p-6 rounded-2xl shadow-md">
-                   <h3 className="text-2xl font-bold mb-4 text-green-600">Success!</h3>
-                   <p className="text-gray-600 mb-4">Your QR code for table "{tableIdentifier}" is ready.</p>
-                   <QrCodeDisplay
-                     url={generatedUrl}
-                     tableName={tableIdentifier}
-                   />
-                   <div className="mt-6 flex flex-col sm:flex-row justify-center gap-4">
-                     <button
-                       onClick={() => {
-                         setShowQRCode(false);
-                         setTableIdentifier('');
-                         setGeneratedUrl(null);
-                       }}
-                       className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
-                     >
-                       Add Another Table
-                     </button>
-                     <button
-                       onClick={() => router.push('/dashboard/tables')}
-                       className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                     >
-                       View All Tables
-                     </button>
-                   </div>
-                 </div>
-            </div>
-        </div>
-    );
-  }
-
-  // Default view: Show the form to add a table
   return (
     <div className="p-4 sm:p-8">
       <div className="max-w-lg mx-auto">
@@ -2410,9 +2284,9 @@ export default function AddTablePage() {
             className="p-2 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 mr-4"
             aria-label="Go back"
           >
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-             </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Add New Table</h1>
@@ -2450,10 +2324,23 @@ export default function AddTablePage() {
               className="bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold px-6 py-3 rounded-xl disabled:opacity-50 flex items-center justify-center"
             >
               {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-              {isSubmitting ? 'Generating...' : 'Generate QR Code'}
+              {isSubmitting ? 'Saving...' : 'Save Table'}
             </button>
           </div>
         </form>
+
+        {generatedUrl && (
+          <div className="mt-8 bg-white p-6 rounded-2xl shadow-md text-center">
+            <h3 className="text-lg font-semibold mb-4">QR Code Generated!</h3>
+            <img src={generatedUrl} alt="Generated QR Code" className="mx-auto h-40 w-40" />
+            <button
+              onClick={handleDownloadQR}
+              className="mt-4 w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700"
+            >
+              Download QR
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2461,122 +2348,6 @@ export default function AddTablePage() {
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\tables\[id]\edit\page.tsx -----
 
-// src/app/dashboard/tables/[id]/edit/page.tsx
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase/client';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Save } from 'lucide-react';
-import { Table } from '@/lib/api/tables';
-
-export default function EditTablePage() {
-Â  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-Â  const [loading, setLoading] = useState<boolean>(true);
-Â  const [table, setTable] = useState<Table | null>(null);
-Â  const [tableIdentifier, setTableIdentifier] = useState<string>('');
-Â  const router = useRouter();
-Â  const params = useParams();
-Â  const { id } = params;
-
-Â  useEffect(() => {
-Â  Â  const fetchTable = async () => {
-Â  Â  Â  if (!id) return;
-Â  Â  Â  setLoading(true);
-Â  Â  Â  const { data, error } = await supabase
-Â  Â  Â  Â  .from('tables')
-Â  Â  Â  Â  .select('*')
-Â  Â  Â  Â  .eq('id', id)
-Â  Â  Â  Â  .single();
-
-Â  Â  Â  if (error || !data) {
-Â  Â  Â  Â  console.error('Error fetching table data:', error);
-Â  Â  Â  Â  alert('Could not find the table to edit.');
-Â  Â  Â  Â  router.push('/dashboard/tables');
-Â  Â  Â  } else {
-Â  Â  Â  Â  setTable(data);
-Â  Â  Â  Â  setTableIdentifier(data.table_number);
-Â  Â  Â  }
-Â  Â  Â  setLoading(false);
-Â  Â  };
-
-Â  Â  fetchTable();
-Â  }, [id, router]);
-
-Â  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-Â  Â  e.preventDefault();
-Â  Â  if (!table || !tableIdentifier.trim()) {
-Â  Â  Â  alert("Table data is missing or table name is empty.");
-Â  Â  Â  return;
-Â  Â  }
-
-Â  Â  setIsSubmitting(true);
-Â  Â  try {
-Â  Â  Â  const { error } = await supabase
-Â  Â  Â  Â  .from('tables')
-Â  Â  Â  Â  .update({ table_number: tableIdentifier })
-Â  Â  Â  Â  .eq('id', table.id);
-
-Â  Â  Â  if (error) throw error;
-
-Â  Â  Â  alert(`Successfully updated table!`);
-Â  Â  Â  router.push('/dashboard/tables');
-Â  Â  } catch (error: any) {
-Â  Â  Â  console.error(error);
-Â  Â  Â  alert(`Failed to update table: ${error.message}`);
-Â  Â  } finally {
-Â  Â  Â  setIsSubmitting(false);
-Â  Â  }
-Â  };
-
-Â  if (loading) return <Skeleton className="h-64 w-full" />;
-Â  if (!table) return <p className="text-red-600">Table not found.</p>;
-
-Â  return (
-Â  Â  <div className="p-4 sm:p-8">
-Â  Â  Â  <div className="max-w-lg mx-auto">
-Â  Â  Â  Â  <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-Â  Â  Â  Â  Â  <h1 className="text-3xl font-bold text-gray-800">Edit Table</h1>
-Â  Â  Â  Â  Â  <p className="text-gray-600 mt-1">Update the name or number for this table.</p>
-Â  Â  Â  Â  </div>
-
-Â  Â  Â  Â  <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-md space-y-6">
-Â  Â  Â  Â  Â  <div>
-Â  Â  Â  Â  Â  Â  <label htmlFor="tableIdentifier" className="block text-lg font-semibold text-gray-700 mb-2">
-Â  Â  Â  Â  Â  Â  Â  Table Name or Number
-Â  Â  Â  Â  Â  Â  </label>
-Â  Â  Â  Â  Â  Â  <input
-Â  Â  Â  Â  Â  Â  Â  id="tableIdentifier"
-Â  Â  Â  Â  Â  Â  Â  type="text"
-Â  Â  Â  Â  Â  Â  Â  value={tableIdentifier}
-Â  Â  Â  Â  Â  Â  Â  onChange={(e) => setTableIdentifier(e.target.value)}
-Â  Â  Â  Â  Â  Â  Â  className="w-full text-lg p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-Â  Â  Â  Â  Â  Â  Â  required
-Â  Â  Â  Â  Â  Â  />
-Â  Â  Â  Â  Â  </div>
-Â  Â  Â  Â  Â  <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
-Â  Â  Â  Â  Â  Â  <button
-Â  Â  Â  Â  Â  Â  Â  type="button"
-Â  Â  Â  Â  Â  Â  Â  onClick={() => router.back()}
-Â  Â  Â  Â  Â  Â  Â  className="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-100"
-Â  Â  Â  Â  Â  Â  >
-Â  Â  Â  Â  Â  Â  Â  Cancel
-Â  Â  Â  Â  Â  Â  </button>
-Â  Â  Â  Â  Â  Â  <button
-Â  Â  Â  Â  Â  Â  Â  type="submit"
-Â  Â  Â  Â  Â  Â  Â  disabled={isSubmitting}
-Â  Â  Â  Â  Â  Â  Â  className="bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold px-6 py-3 rounded-xl disabled:opacity-50 flex items-center justify-center"
-Â  Â  Â  Â  Â  Â  >
-Â  Â  Â  Â  Â  Â  Â  {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-Â  Â  Â  Â  Â  Â  Â  {isSubmitting ? 'Saving...' : 'Save Changes'}
-Â  Â  Â  Â  Â  Â  </button>
-Â  Â  Â  Â  Â  </div>
-Â  Â  Â  Â  </form>
-Â  Â  Â  </div>
-Â  Â  </div>
-Â  );
-}
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\tables\page.tsx -----
 
@@ -2604,7 +2375,7 @@ export default function TablesPage() {
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Table Management</h1>
-            <p className="text-gray-600 mt-1">Add, view, and manage your restaurant&apos;s tables and QR codes.</p>
+            <p className="text-gray-600 mt-1">Add, view, and manage your restaurant's tables and QR codes.</p>
           </div>
           <Link 
             href="/dashboard/tables/add" 
@@ -2652,7 +2423,7 @@ export default function TablesPage() {
       </div>
     </div>
   );
-} 
+}
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\test\page.tsx -----
 

@@ -1,3 +1,5 @@
+// src/app/dashboard/tables/add/page.tsx
+
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -5,23 +7,23 @@ import { generateQR } from '@/lib/api/generateQR';
 import { supabase } from '@/lib/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2 } from 'lucide-react';
-import QrCodeDisplay from '@/components/tables/QrCodeDisplay';
-import { Restaurant } from '@/types/restaurant'; // Import the type
+import { Restaurant } from '@/lib/types/types'; // Using a shared type
 
 export default function AddTablePage() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const router = useRouter();
   const [loading, setLoading] = useState<boolean>(true);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  // FIX: Table identifier is a string, not just a number
   const [tableIdentifier, setTableIdentifier] = useState<string>('');
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
-  const [showQRCode, setShowQRCode] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchRestaurant = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setLoading(false);
+        // Optionally, redirect to login
         router.push('/login');
         return;
       }
@@ -42,70 +44,43 @@ export default function AddTablePage() {
     fetchRestaurant();
   }, [router]);
 
+  // FIX: Make the handler async and use state directly
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!restaurant || !tableIdentifier.trim()) {
-      alert("Restaurant data is missing or table name is empty.");
-      return;
+        alert("Restaurant data is missing or table name is empty.");
+        return;
     }
 
     setIsSubmitting(true);
     setGeneratedUrl(null);
-    setShowQRCode(false);
 
     try {
+      // The API route calls the edge function to do all the work
       const qrUrl = await generateQR(restaurant.id, tableIdentifier);
       setGeneratedUrl(qrUrl);
-      setShowQRCode(true); // Show the QR code section on success
+      alert(`Successfully created table "${tableIdentifier}"!`);
+      // You can now download the QR or navigate away
+      router.push('/dashboard/tables');
     } catch (error: any) {
       console.error(error);
-      // FIXED: Corrected template literal for the alert message
       alert(`Failed to create table: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleDownloadQR = () => {
+    if (!generatedUrl) return;
+    const link = document.createElement("a");
+    link.href = generatedUrl;
+    link.download = `table-${tableIdentifier.replace(/\s+/g, '-')}.png`;
+    link.click();
+  };
+
   if (loading) return <Skeleton className="h-64 w-full" />;
   if (!restaurant) return <p className="text-red-600">No restaurant profile found.</p>;
 
-  // If a QR code has been generated, show the success view
-  if (showQRCode && generatedUrl) {
-    return (
-        <div className="p-4 sm:p-8">
-            <div className="max-w-lg mx-auto text-center">
-                 <div className="mt-8 bg-white p-6 rounded-2xl shadow-md">
-                   <h3 className="text-2xl font-bold mb-4 text-green-600">Success!</h3>
-                   <p className="text-gray-600 mb-4">Your QR code for table "{tableIdentifier}" is ready.</p>
-                   <QrCodeDisplay
-                     url={generatedUrl}
-                     tableName={tableIdentifier}
-                   />
-                   <div className="mt-6 flex flex-col sm:flex-row justify-center gap-4">
-                     <button
-                       onClick={() => {
-                         setShowQRCode(false);
-                         setTableIdentifier('');
-                         setGeneratedUrl(null);
-                       }}
-                       className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
-                     >
-                       Add Another Table
-                     </button>
-                     <button
-                       onClick={() => router.push('/dashboard/tables')}
-                       className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                     >
-                       View All Tables
-                     </button>
-                   </div>
-                 </div>
-            </div>
-        </div>
-    );
-  }
-
-  // Default view: Show the form to add a table
   return (
     <div className="p-4 sm:p-8">
       <div className="max-w-lg mx-auto">
@@ -115,9 +90,9 @@ export default function AddTablePage() {
             className="p-2 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 mr-4"
             aria-label="Go back"
           >
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-             </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Add New Table</h1>
@@ -155,10 +130,23 @@ export default function AddTablePage() {
               className="bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold px-6 py-3 rounded-xl disabled:opacity-50 flex items-center justify-center"
             >
               {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-              {isSubmitting ? 'Generating...' : 'Generate QR Code'}
+              {isSubmitting ? 'Saving...' : 'Save Table'}
             </button>
           </div>
         </form>
+
+        {generatedUrl && (
+          <div className="mt-8 bg-white p-6 rounded-2xl shadow-md text-center">
+            <h3 className="text-lg font-semibold mb-4">QR Code Generated!</h3>
+            <img src={generatedUrl} alt="Generated QR Code" className="mx-auto h-40 w-40" />
+            <button
+              onClick={handleDownloadQR}
+              className="mt-4 w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700"
+            >
+              Download QR
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

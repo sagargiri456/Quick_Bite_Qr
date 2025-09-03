@@ -1,15 +1,18 @@
+// src/app/customer-end-pages/PublicPagesComponents/CustomerMenuItemCard.tsx
+
 'use client';
 
 import Image from 'next/image';
 import { MenuItem } from '@/types/menu';
 import { Plus } from 'lucide-react';
-// CORRECTED: Import from the new co-located path
 import { useCartStore } from '../store/cartStore'; 
+import { toast } from 'sonner';
 
+// FIXED: Changed currency to INR to be consistent
 const formatPrice = (price: number) => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'INR',
   }).format(price);
 };
 
@@ -19,6 +22,11 @@ interface CustomerMenuItemCardProps {
 
 export default function CustomerMenuItemCard({ item }: CustomerMenuItemCardProps) {
   const { addItem } = useCartStore();
+
+  const handleAddItem = () => {
+    addItem(item);
+    toast.success(`${item.name} added to cart!`);
+  }
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col group transition-all duration-300 hover:shadow-2xl">
@@ -43,7 +51,7 @@ export default function CustomerMenuItemCard({ item }: CustomerMenuItemCardProps
         <div className="flex justify-between items-center mt-4">
           <p className="text-xl font-bold text-gray-900">{formatPrice(item.price)}</p>
           <button 
-            onClick={() => addItem(item)}
+            onClick={handleAddItem}
             className="flex items-center gap-2 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
             <Plus size={16} />

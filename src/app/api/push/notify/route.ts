@@ -1,72 +1,54 @@
-import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
-import webpush from "web-push";
+// src/app/api/push/notify/route.ts
 
-// Load VAPID keys
+import { NextResponse } from 'next/server';
+import webpush from 'web-push';
+import { createServerClient } from '@/lib/supabase/server';
+
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY!;
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@example.com';
 
-webpush.setVapidDetails(
-  "mailto:admin@quickbiteqr.online",
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
+webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 export async function POST(req: Request) {
-  const supabase = await createServerClient();
-  // FIXED: Check for an authenticated restaurant user before allowing notifications to be sent.
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const { orderId, title, message, url } = await req.json(); // Changed 'body' to 'message' for clarity
+    if (!orderId) return NextResponse.json({ error: 'orderId required' }, { status: 400 });
 
-  const { orderId, title, message } = await req.json();
+    const supabase = createServerClient(); // FIXED: Removed await
+    const { data: subs, error } = await supabase
+      .from('web_push_subscriptions')
+      .select('*')
+      .eq('order_id', orderId);
 
-  // Get all subscriptions for this order
-  const { data: subs, error } = await supabase
-    .from("web_push_subscriptions")
-    .select("*")
-    .eq("order_id", orderId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!subs || subs.length === 0) {
+        return NextResponse.json({ ok: true, message: "No subscriptions found for this order." });
+    }
 
-  if (error) {
-    console.error("Error fetching subscriptions:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+    const payload = JSON.stringify({ title: title || 'Order update', body: message || '', data: { url } });
 
-  if (!subs || subs.length === 0) {
-    return NextResponse.json({ success: false, message: "No subscribers for this order" });
-  }
-
-  const payload = JSON.stringify({
-    title: title || "QuickBite QR",
-    body: message || "New order update",
-  });
-
-  let successCount = 0;
-
-  await Promise.all(
-    subs.map(async (sub) => {
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth,
-            },
-          },
-          payload
-        );
-        successCount++;
-      } catch (err: any) {
-        console.error("Push failed:", err?.message || err);
-        // Cleanup dead subscription
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          await supabase.from("web_push_subscriptions").delete().eq("id", sub.id);
+    const results = await Promise.allSettled(
+      subs.map(async (s) => {
+        const subscription = {
+          endpoint: s.endpoint,
+          keys: { p256dh: s.p256dh, auth: s.auth }
+        } as webpush.PushSubscription;
+        try {
+          await webpush.sendNotification(subscription, payload);
+          return { ok: true, endpoint: s.endpoint };
+        } catch (err: any) {
+          // If subscription is gone, delete it from the DB
+          if (err.statusCode === 404 || err.statusCode === 410) {
+            await supabase.from('web_push_subscriptions').delete().eq('endpoint', s.endpoint);
+          }
+          return { ok: false, error: err?.message, endpoint: s.endpoint };
         }
-      }
-    })
-  );
+      })
+    );
 
-  return NextResponse.json({ success: true, delivered: successCount });
+    return NextResponse.json({ ok: true, results });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Unknown error' }, { status: 500 });
+  }
 }

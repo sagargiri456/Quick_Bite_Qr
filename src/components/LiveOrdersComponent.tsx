@@ -1,3 +1,5 @@
+// src/components/LiveOrdersComponent.tsx
+
 "use client";
 
 import React, { useState } from "react";
@@ -5,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Clock, ChefHat, CheckCircle, XCircle } from "lucide-react";
+import { Clock, ChefHat, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Order, OrderStatus } from "@/app/dashboard/orders/OrderTypes";
 import { setOrderStatus } from "@/lib/api/orders";
@@ -16,9 +18,7 @@ interface Props {
   filteredOrders: Order[];
 }
 
-const ETA_PRESETS = [10, 15, 20, 25, 30];
 const STATUS_OPTIONS: (OrderStatus|"All")[] = ["All", "pending", "confirmed", "preparing", "ready"];
-
 
 const LiveOrdersComponent: React.FC<Props> = ({ fetchLiveOrders, filteredOrders }) => {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -29,7 +29,7 @@ const LiveOrdersComponent: React.FC<Props> = ({ fetchLiveOrders, filteredOrders 
     try {
       await setOrderStatus(orderId, status, eta);
       toast.success(`Order #${orderId.slice(-6)} updated to ${status}.`);
-      fetchLiveOrders(); // Re-fetch data to update the view
+      fetchLiveOrders();
     } catch (e: any) {
       toast.error(e?.message || "Failed to update status");
     } finally {
@@ -49,7 +49,7 @@ const LiveOrdersComponent: React.FC<Props> = ({ fetchLiveOrders, filteredOrders 
   };
 
   const ordersToDisplay = activeStatus === 'All'
-    ? filteredOrders
+    ? filteredOrders.filter(o => o.status !== 'complete' && o.status !== 'cancelled')
     : filteredOrders.filter(o => o.status === activeStatus);
 
   return (
@@ -64,27 +64,28 @@ const LiveOrdersComponent: React.FC<Props> = ({ fetchLiveOrders, filteredOrders 
 
       <div>
         {ordersToDisplay.length > 0 ? (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {ordersToDisplay.map((order) => {
               const isUpdating = updatingId === order.id;
               return (
-                <Card key={order.id} className="shadow-md">
+                <Card key={order.id} className="shadow-md flex flex-col">
                   <CardHeader>
                     <div className="flex justify-between items-center">
                       <CardTitle className="text-lg">
-                        Table {order.tables?.table_number || 'N/A'} - Order #{order.id.slice(-6)}
+                        Table {order.tables?.table_number || 'N/A'} - #{order.track_code}
                       </CardTitle>
                       <Badge variant="outline" className="capitalize flex items-center gap-2">
                         {getStatusIcon(order.status)} {order.status}
                       </Badge>
                     </div>
                     <CardDescription>
-                      <Link href={`/customer-end-pages/${order.restaurants?.restaurant_name.toLowerCase().replace(/\s+/g, '-')}/orders/${order.track_code}`} target="_blank" className="text-blue-600 hover:underline text-xs font-mono">
-                        Track Code: {order.track_code}
+                      {/* FIXED: Use restaurant slug for the link */}
+                      <Link href={`/customer-end-pages/${order.restaurants?.slug}/orders/${order.track_code}`} target="_blank" className="text-blue-600 hover:underline text-xs">
+                        View Public Page
                       </Link>
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="flex-grow">
                     <ul className="divide-y">
                       {order.order_items.map(item => (
                         <li key={item.id} className="flex justify-between py-2 text-sm">
@@ -98,25 +99,25 @@ const LiveOrdersComponent: React.FC<Props> = ({ fetchLiveOrders, filteredOrders 
                     </div>
                   </CardContent>
                   <div className="p-4 border-t bg-gray-50 flex flex-wrap items-center gap-2">
-                     {/* Action Buttons based on current status */}
-                     {order.status === 'pending' && (
-                        <Button size="sm" disabled={isUpdating} onClick={() => handleUpdate(order.id, "confirmed")}>
-                           Confirm Order
-                        </Button>
-                     )}
-                     {order.status === 'confirmed' && (
-                        <Button size="sm" disabled={isUpdating} onClick={() => handleUpdate(order.id, "preparing", 15)}>
-                           Start Preparing
-                        </Button>
-                     )}
-                      {order.status === 'preparing' && (
-                        <Button size="sm" variant="secondary" disabled={isUpdating} onClick={() => handleUpdate(order.id, "ready")}>
-                           Mark as Ready
-                        </Button>
-                     )}
-                      <Button size="sm" variant="destructive" disabled={isUpdating || order.status === 'ready' || order.status === 'complete'} onClick={() => handleUpdate(order.id, "cancelled")}>
+                    {isUpdating && <Loader2 className="h-5 w-5 animate-spin" />}
+                    
+                    {!isUpdating && order.status === 'pending' && (
+                      <Button size="sm" disabled={isUpdating} onClick={() => handleUpdate(order.id, "confirmed")}>Confirm Order</Button>
+                    )}
+                    {!isUpdating && order.status === 'confirmed' && (
+                      <Button size="sm" disabled={isUpdating} onClick={() => handleUpdate(order.id, "preparing", 15)}>Start Preparing</Button>
+                    )}
+                    {!isUpdating && order.status === 'preparing' && (
+                      <Button size="sm" variant="secondary" disabled={isUpdating} onClick={() => handleUpdate(order.id, "ready")}>Mark as Ready</Button>
+                    )}
+                    {!isUpdating && (order.status === 'ready' || order.status === 'complete') && (
+                       <p className="text-sm text-green-600">Order is ready for customer.</p>
+                    )}
+                    {!isUpdating && !['ready', 'complete', 'cancelled'].includes(order.status) && (
+                      <Button size="sm" variant="destructive" disabled={isUpdating} onClick={() => handleUpdate(order.id, "cancelled")}>
                         Cancel
                       </Button>
+                    )}
                   </div>
                 </Card>
               );

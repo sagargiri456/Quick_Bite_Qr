@@ -1,10 +1,40 @@
+// src/app/api/orders/[id]/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
   const { status, note, etaMinutes } = await req.json();
   const orderId = params.id;
+
+  // FIXED: Added Authorization check
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  
+  // Find restaurant for this user
+  const { data: restaurant, error: restaurantError } = await supabase
+    .from("restaurants")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (restaurantError || !restaurant) {
+      return NextResponse.json({ error: "Restaurant not found for user" }, { status: 404 });
+  }
+  
+  // Verify the order belongs to this restaurant
+  const { count, error: checkError } = await supabase
+    .from('orders')
+    .select('*', { count: 'exact', head: true })
+    .eq('id', orderId)
+    .eq('restaurant_id', restaurant.id);
+
+  if (checkError || count === 0) {
+    return NextResponse.json({ error: "Order not found or permission denied." }, { status: 404 });
+  }
 
   // 1. Update order status
   const { error: updateError } = await supabase
@@ -26,7 +56,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
   // 3. Send notification
   try {
-    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/push/notify`, {
+    await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/push/notify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

@@ -1,20 +1,33 @@
+// src/app/api/orders/[id]/status/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
   
-  // FIXED: Authorization check
+  // Authorization check
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Find restaurant for this user
+  const { data: restaurant, error: restaurantError } = await supabase
+    .from("restaurants")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (restaurantError || !restaurant) {
+      return NextResponse.json({ error: "Restaurant not found for user" }, { status: 404 });
   }
 
   const { count, error: checkError } = await supabase
     .from('orders')
     .select('*', { count: 'exact', head: true })
     .eq('id', params.id)
-    .eq('restaurant_id', user.id);
+    .eq('restaurant_id', restaurant.id);
   
   if (checkError || count === 0) {
       return NextResponse.json({ error: "Order not found or you do not have permission to modify it." }, { status: 404 });
@@ -56,7 +69,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       orderId: params.id,
-      title: `Order ${status}`,
+      title: `Order Status: ${status}`,
       message: note || `Your order is now ${status}`,
     }),
   });

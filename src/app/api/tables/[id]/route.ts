@@ -1,3 +1,5 @@
+// src/app/api/tables/[id]/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
@@ -28,7 +30,7 @@ async function verifyOwnership(supabase: any, tableId: string): Promise<boolean>
 
 // GET single table details
 export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
   const { data, error } = await supabase
     .from("tables")
@@ -37,7 +39,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 404 });
+    return NextResponse.json({ error: "Table not found." }, { status: 404 });
   }
 
   return NextResponse.json(data);
@@ -45,9 +47,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 
 // PUT update table info
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
-  // FIXED: Authorization check
   const isOwner = await verifyOwnership(supabase, params.id);
   if (!isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -72,9 +73,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 // DELETE single table
 export async function DELETE(_: Request, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
-  // FIXED: Authorization check
   const isOwner = await verifyOwnership(supabase, params.id);
   if (!isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });

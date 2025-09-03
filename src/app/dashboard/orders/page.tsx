@@ -1,49 +1,108 @@
 // src/app/dashboard/orders/page.tsx
-import React from 'react';
-import LiveOrders from './LiveOrders';
-import OrderHistory from './OrderHistory';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+"use client";
 
-export default function Orders() {
+import { useEffect, useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import LiveOrdersComponent from '@/components/LiveOrdersComponent';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import type { Order, OrderStatus } from './OrderTypes';
+
+// This is a new type definition file needed for the orders page.
+// Create a new file at: src/app/dashboard/orders/OrderTypes.ts
+/*
+export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'complete' | 'cancelled';
+
+export type OrderItem = {
+  id: string;
+  quantity: number;
+  price: number;
+  menu_items: {
+    name: string;
+  } | null;
+};
+
+export type Order = {
+  id: string;
+  status: OrderStatus;
+  total_amount: number;
+  created_at: string;
+  track_code: string;
+  order_items: OrderItem[];
+  restaurants: {
+    restaurant_name: string;
+    slug: string;
+  } | null;
+  tables: {
+    table_number: string;
+  } | null;
+};
+*/
+
+export default function LiveOrdersPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/orders');
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to fetch orders.');
+      }
+      const data: Order[] = await res.json();
+      setOrders(data);
+    } catch (e: any) {
+      setError(e.message);
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-      {/* Page header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
-        <p className="text-sm text-muted-foreground">
-          Monitor live orders and browse historical activity.
-        </p>
-      </div>
+    <div className="p-4 sm:p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-md p-6 mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">Live Orders</h1>
+            <p className="text-gray-600 mt-1">View and manage incoming orders in real-time.</p>
+          </div>
+          <Button onClick={() => fetchOrders()} variant="outline" disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
 
-      <Separator className="mb-6" />
-
-      {/* Content grid */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        {/* Live Orders */}
-        <Card className="shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Live Orders</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {/* Make inner content scroll on small screens while keeping the card tidy */}
-            <div className="max-h-[70vh] overflow-auto px-4 pb-4">
-              <LiveOrders />
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-12 w-12 animate-spin text-indigo-500" />
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 text-red-700 p-6 rounded-xl flex items-center gap-4">
+            <AlertCircle className="h-8 w-8" />
+            <div>
+              <h3 className="font-bold">Error</h3>
+              <p>{error}</p>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Order History */}
-        <Card className="shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Order History</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="max-h-[70vh] overflow-auto px-4 pb-4">
-              <OrderHistory />
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <LiveOrdersComponent fetchLiveOrders={fetchOrders} filteredOrders={orders} />
+          </motion.div>
+        )}
       </div>
     </div>
   );
