@@ -1,93 +1,80 @@
-"use client";
+'use client';
 
-import React, { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { getInitials } from "@/lib/utils";
-import { Utensils } from "lucide-react";
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase/client';
+import { formatDate } from '@/lib/utils';
+import StatusBadge from './orders/StatusBadge';
+import type { CustomerOrderStatus } from './orders/OrderStatusTimeline';
 
-type OrderWithDetails = {
+type Order = {
   id: string;
-  total_amount: number;
+  track_code: string;
   created_at: string;
-  status: "pending" | "confirmed" | "preparing" | "ready" | "complete" | "cancelled";
-  tables: { table_number: string } | null;
-  restaurants: { restaurant_name: string } | null;
+  status: CustomerOrderStatus;
 };
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "ready":
-    case "complete": return "bg-green-100 text-green-800 border-green-200";
-    case "preparing": return "bg-blue-100 text-blue-800 border-blue-200";
-    case "pending": return "bg-yellow-100 text-yellow-800 border-yellow-200";
-    case "cancelled": return "bg-red-100 text-red-800 border-red-200";
-    default: return "bg-gray-100 text-gray-800 border-gray-200";
-  }
-};
-
-async function fetchRecentOrdersApi(): Promise<OrderWithDetails[]> {
-  const res = await fetch("/api/orders/recent", { cache: "no-store" });
-  if (!res.ok) return [];
-  return res.json();
-}
-
-export function RecentOrders() {
-  const [orders, setOrders] = useState<OrderWithDetails[]>([]);
+export default function RecentOrders() {
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchRecentOrdersApi()
-      .then(setOrders)
-      .catch(() => setError("Could not fetch recent orders."))
-      .finally(() => setLoading(false));
+    let mounted = true;
 
-    // realtime subscription proxy
-    const evt = new EventSource("/api/orders/stream");
-    evt.onmessage = () => fetchRecentOrdersApi().then(setOrders);
-    return () => evt.close();
+    // Fetch latest orders
+    const fetchOrders = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id, track_code, created_at, status')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (!error && data && mounted) {
+        setOrders(data as Order[]);
+      }
+      setLoading(false);
+    };
+
+    fetchOrders();
+
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel('realtime-orders')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => fetchOrders()
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  if (loading) {
-    return <div className="space-y-4"><Skeleton className="h-12 w-12 rounded-full" /><Skeleton className="h-4 w-[250px]" /></div>;
-  }
-  if (error) return <p className="text-red-500 text-center">{error}</p>;
-
   return (
-    <div className="space-y-4">
-      {orders.length === 0 ? (
-        <div className="text-center py-10">
-          <Utensils className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No Recent Orders</h3>
-          <p className="mt-1 text-sm text-gray-500">New orders will appear here in real-time.</p>
-        </div>
+    <div className="bg-white rounded-xl shadow p-6">
+      <h2 className="text-xl font-semibold mb-4">Recent Orders</h2>
+
+      {loading ? (
+        <p className="text-gray-500 text-sm animate-pulse">Loading orders…</p>
+      ) : orders.length === 0 ? (
+        <p className="text-gray-500 text-sm">No recent orders yet.</p>
       ) : (
-        orders.map((order) => (
-          <Card key={order.id} className="bg-white border border-gray-200 hover:shadow-md transition-shadow duration-300">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                      {getInitials(order.tables?.table_number || "T")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">Table {order.tables?.table_number || "N/A"}</p>
-                    <p className="text-xs text-gray-500">{new Date(order.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-gray-800">${Number(order.total_amount).toFixed(2)}</p>
-                  <Badge variant="outline" className={`mt-1 text-xs capitalize ${getStatusColor(order.status)}`}>{order.status}</Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))
+        <ul className="divide-y divide-gray-200">
+          {orders.map((order) => (
+            <li
+              key={order.id}
+              className="py-3 flex justify-between items-center"
+            >
+              <span className="text-sm text-gray-600">
+                #{order.track_code} – {formatDate(order.created_at)}
+              </span>
+              <StatusBadge status={order.status} />
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

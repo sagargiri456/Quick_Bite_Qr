@@ -1,41 +1,35 @@
-import { supabase } from '@/lib/supabase/client';
-
 export interface Table {
   id: number;
+  restaurant_id: string;
   table_number: string;
   qr_code_url: string;
-  restaurant_id: string;
+  created_at: string;
 }
 
-export type NewTableData = {
-  table_number: string;
-  qr_code_url: string;
-  restaurant_id: string;
-};
+export async function getTables(): Promise<Table[]> {
+  const res = await fetch("/api/tables");
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
 
-// ADD 'export' HERE
-export const getTables = async (): Promise<Table[]> => {
-  const { data, error } = await supabase.from('tables').select('*').order('id');
-  if (error) throw new Error(error.message);
-  return data || [];
-};
+export async function addTable(
+  restaurantSlug: string,
+  tableNumber: string
+): Promise<Table> {
+  const res = await fetch("/api/tables", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ restaurant_slug: restaurantSlug, table_number: tableNumber }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
 
-// ADD 'export' HERE
-export const addTable = async (tableData: NewTableData): Promise<Table> => {
-  const { data, error } = await supabase.from('tables').insert([tableData]).select().single();
-  if (error) throw new Error(error.message);
-  return data;
-};
-
-// ADD 'export' HERE
-export const updateTable = async (id: number, updates: Partial<Table>): Promise<Table> => {
-  const { data, error } = await supabase.from('tables').update(updates).eq('id', id).select().single();
-  if (error) throw new Error(error.message);
-  return data;
-};
-
-// ADD 'export' HERE
-export const deleteTable = async (id: number): Promise<void> => {
-  const { error } = await supabase.from('tables').delete().eq('id', id);
-  if (error) throw new Error(error.message);
-};
+export async function deleteTable(id: number): Promise<void> {
+  const res = await fetch("/api/tables", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}

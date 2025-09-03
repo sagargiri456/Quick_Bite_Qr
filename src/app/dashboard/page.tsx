@@ -1,10 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import Image from 'next/image';
-import { LiveOrdersPanel } from '@/components/LiveOrdersPanel';
-import { LiveOrderNotification } from '@/components/LiveOrderNotification';
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import Image from "next/image";
+import LiveOrdersPanel from "@/components/LiveOrdersPanel";
 
 export default function DashboardPage() {
   const [isOffline, setIsOffline] = useState(false);
@@ -16,14 +15,16 @@ export default function DashboardPage() {
 
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
     setIsOffline(!navigator.onLine);
 
     return () => {
       clearTimeout(timer);
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
@@ -42,7 +43,9 @@ export default function DashboardPage() {
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 via-purple-900/60 to-indigo-900/40 z-10"></div>
         <div className="relative z-20 p-10 text-white">
-          <h1 className="text-3xl font-bold">Welcome to QuickBite QR Dashboard</h1>
+          <h1 className="text-3xl font-bold">
+            Welcome to QuickBite QR Dashboard
+          </h1>
           <p className="mt-2 text-lg opacity-80">
             Manage your restaurant tables, menu, and live orders in one place.
           </p>
@@ -61,7 +64,7 @@ export default function DashboardPage() {
       )}
 
       {/* Main Dashboard Content */}
-      <div className="flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+      <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
         <div className="max-w-[2000px] mx-auto space-y-8">
           {loading ? (
             <div className="bg-white p-6 rounded-xl shadow-md text-center">
@@ -74,28 +77,16 @@ export default function DashboardPage() {
               Failed to load dashboard: {error}
             </div>
           ) : (
-            <>
-              {/* Live Orders */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-              >
-                <LiveOrdersPanel />
-              </motion.div>
-
-              {/* Notifications */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-              >
-                <LiveOrderNotification />
-              </motion.div>
-            </>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <LiveOrdersPanel />
+            </motion.div>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

@@ -1,10 +1,15 @@
 // src/app/api/uploadthing/core.ts
 import { createUploadthing, type FileRouter } from "uploadthing/next";
+import { createServerClient } from "@/lib/supabase/server";
 
 const f = createUploadthing();
 
-// This is a fake user ID - in a real app, you'd get this from your auth solution
-const auth = (_req: Request) => ({ id: "fake-user-id" }); 
+// FIXED: The auth function must now be async and await the server client
+const auth = async (_req: Request) => {
+  const supabase = await createServerClient(); // <-- Added await here
+  const { data: { user } } = await supabase.auth.getUser();
+  return user ? { id: user.id } : null;
+};
 
 // FileRouter for your app, can contain multiple FileRoutes
 export const ourFileRouter = {
@@ -14,7 +19,6 @@ export const ourFileRouter = {
     .middleware(async ({ req }) => {
       // This code runs on your server before upload
       const user = await auth(req);
-    
 
       // If you throw, the user will not be able to upload
       if (!user) throw new Error("Unauthorized");

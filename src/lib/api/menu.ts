@@ -1,46 +1,43 @@
-import { supabase } from '@/lib/supabase/client';
-import { MenuItem } from '@/types/menu';
+import { MenuItem } from "@/types/menu";
 
-// Define the type for creating a new menu item (omit id + timestamps)
-export type NewMenuItem = Omit<MenuItem, 'id' | 'created_at' | 'updated_at'>;
+export type NewMenuItem = Omit<MenuItem, "id" | "created_at" | "updated_at">;
 
-// READ: Fetches menu items (RLS filters to current restaurant automatically)
-export const getMenuItems = async (): Promise<MenuItem[]> => {
-  const { data, error } = await supabase.from('menu_items').select('*');
-  if (error) throw new Error(error.message);
-  return data || [];
-};
+export async function getMenuItems(): Promise<MenuItem[]> {
+  const res = await fetch("/api/menus");
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
 
-// CREATE: Adds a new menu item
-export const addMenuItem = async (itemData: NewMenuItem): Promise<MenuItem> => {
-  const { data, error } = await supabase
-    .from('menu_items')
-    .insert([itemData])
-    .select()
-    .single();
+export async function getMenuItem(id: number): Promise<MenuItem> {
+  const res = await fetch(`/api/menu/${id}`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
 
-  if (error) throw new Error(error.message);
-  return data as MenuItem;
-};
+export async function addMenuItem(item: NewMenuItem): Promise<MenuItem> {
+  const res = await fetch("/api/menu", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(item),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
 
-// UPDATE: Updates an existing menu item
-export const updateMenuItem = async (
+export async function updateMenuItem(
   id: number,
   updates: Partial<MenuItem>
-): Promise<MenuItem> => {
-  const { data, error } = await supabase
-    .from('menu_items')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
+): Promise<MenuItem> {
+  const res = await fetch(`/api/menu/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
 
-  if (error) throw new Error(error.message);
-  return data as MenuItem;
-};
-
-// DELETE: Deletes a menu item
-export const deleteMenuItem = async (id: number): Promise<void> => {
-  const { error } = await supabase.from('menu_items').delete().eq('id', id);
-  if (error) throw new Error(error.message);
-};
+export async function deleteMenuItem(id: number): Promise<void> {
+  const res = await fetch(`/api/menu/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(await res.text());
+}

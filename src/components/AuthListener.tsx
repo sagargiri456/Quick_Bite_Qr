@@ -1,30 +1,26 @@
-'use client'
-import { useEffect } from 'react'
-import { supabase }  from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+'use client';
+
+import { useEffect } from 'react';
+import { supabase } from '@/lib/supabase/client';
 
 export default function AuthListener() {
-  const router = useRouter()
-
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-      console.log('Auth event:', event)
-
-      if (event === 'SIGNED_IN') {
-        router.push('/dashboard') // or wherever you want
-      }
-
-      if (event === 'SIGNED_OUT') {
-        router.push('/login')
-      }
-
-      // You can also handle TOKEN_REFRESHED, USER_UPDATED, etc.
-    })
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // ✅ Send session to Next.js API so it sets cookies
+      await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // important for cookies
+        body: JSON.stringify({ event, session }),
+      });
+    });
 
     return () => {
-      authListener?.subscription.unsubscribe()
-    }
-  }, [])
+      subscription.unsubscribe();
+    };
+  }, []);
 
-  return null
+  return null;
 }

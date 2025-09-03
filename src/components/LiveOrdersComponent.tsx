@@ -7,157 +7,125 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw, Clock, ChefHat, CheckCircle, XCircle } from "lucide-react";
 import Link from "next/link";
-import { OrderItem, OrderItemStatus } from "@/app/dashboard/orders/LiveOrders";
+import { Order, OrderStatus } from "@/app/dashboard/orders/OrderTypes";
+import { setOrderStatus } from "@/lib/api/orders";
+import { toast } from "sonner";
 
 interface Props {
-  fetchLiveOrders: () => Promise<void>;
-  refreshing: boolean;
-  liveOrders: OrderItem[] | null;
-  filteredOrders: OrderItem[] | null;
-  activeStatus: OrderItemStatus | "All";
-  setActiveStatus: (status: OrderItemStatus | "All") => void;
-  formatDate: (dateString: string) => string;
-  getTotalPrice: (orders: OrderItem[] | null) => number;
-  errorMsg?: string | null;
+  fetchLiveOrders: () => void;
+  filteredOrders: Order[];
 }
 
 const ETA_PRESETS = [10, 15, 20, 25, 30];
+const STATUS_OPTIONS: (OrderStatus|"All")[] = ["All", "pending", "confirmed", "preparing", "ready"];
 
-const LiveOrdersComponent: React.FC<Props> = ({
-  fetchLiveOrders,
-  refreshing,
-  liveOrders,
-  filteredOrders,
-  activeStatus,
-  setActiveStatus,
-  formatDate,
-  getTotalPrice,
-  errorMsg,
-}) => {
+
+const LiveOrdersComponent: React.FC<Props> = ({ fetchLiveOrders, filteredOrders }) => {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [etaChoice, setEtaChoice] = useState<Record<string, number>>({});
+  const [activeStatus, setActiveStatus] = useState<OrderStatus | "All">("All");
 
-  const handleUpdate = async (orderId: string, status: OrderItemStatus, eta?: number | null) => {
+  const handleUpdate = async (orderId: string, status: OrderStatus, eta?: number) => {
+    setUpdatingId(orderId);
     try {
-      setUpdatingId(orderId);
-      await fetch(`/api/orders/${orderId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, eta }),
-      });
-      await fetchLiveOrders();
+      await setOrderStatus(orderId, status, eta);
+      toast.success(`Order #${orderId.slice(-6)} updated to ${status}.`);
+      fetchLiveOrders(); // Re-fetch data to update the view
     } catch (e: any) {
-      alert(e?.message || "Failed to update status");
+      toast.error(e?.message || "Failed to update status");
     } finally {
       setUpdatingId(null);
     }
   };
 
-  const getStatusIcon = (status: OrderItemStatus | null) => {
+  const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
-      case "Pending": return <Clock className="h-4 w-4" />;
-      case "Confirmed": return <CheckCircle className="h-4 w-4" />;
-      case "Preparing": return <ChefHat className="h-4 w-4" />;
-      case "Ready": return <CheckCircle className="h-4 w-4" />;
-      case "Cancelled": return <XCircle className="h-4 w-4" />;
+      case "pending": return <Clock className="h-4 w-4 text-orange-500" />;
+      case "confirmed": return <CheckCircle className="h-4 w-4 text-blue-500" />;
+      case "preparing": return <ChefHat className="h-4 w-4 text-yellow-500" />;
+      case "ready": return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case "cancelled": return <XCircle className="h-4 w-4 text-red-500" />;
       default: return <Clock className="h-4 w-4" />;
     }
   };
 
+  const ordersToDisplay = activeStatus === 'All'
+    ? filteredOrders
+    : filteredOrders.filter(o => o.status === activeStatus);
+
   return (
-    <div className="container mx-auto px-4 py-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Live Orders</h1>
-        <Button onClick={fetchLiveOrders} disabled={refreshing} variant="outline" className="flex items-center gap-2">
-          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
-      </div>
-
-      {errorMsg && <div className="mb-4 text-red-500">{errorMsg}</div>}
-
-      {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card><CardHeader><CardTitle>Total Orders</CardTitle></CardHeader><CardContent>{liveOrders?.length || 0}</CardContent></Card>
-        <Card><CardHeader><CardTitle>Pending</CardTitle></CardHeader><CardContent>{liveOrders?.filter(o=>o.status==='Pending').length || 0}</CardContent></Card>
-        <Card><CardHeader><CardTitle>Total Value</CardTitle></CardHeader><CardContent>${getTotalPrice(liveOrders).toFixed(2)}</CardContent></Card>
-      </div>
-
-      {/* Tabs */}
-      <Tabs value={activeStatus} onValueChange={(v)=>setActiveStatus(v as OrderItemStatus|"All")}>
-        <TabsList className="mb-4 grid grid-cols-5">
-          {["All","Pending","Confirmed","Preparing","Ready"].map(s => (
-            <TabsTrigger key={s} value={s}>{s}</TabsTrigger>
+    <div className="space-y-4">
+      <Tabs value={activeStatus} onValueChange={(v) => setActiveStatus(v as OrderStatus | "All")}>
+        <TabsList className="grid w-full grid-cols-5">
+          {STATUS_OPTIONS.map(s => (
+            <TabsTrigger key={s} value={s} className="capitalize">{s}</TabsTrigger>
           ))}
         </TabsList>
-
-        <div>
-          {filteredOrders && filteredOrders.length > 0 ? (
-            <div className="space-y-4">
-              {filteredOrders.map((order) => {
-                const isUpdating = updatingId === order.order.id;
-                const eta = etaChoice[order.order.id] ?? 15;
-                return (
-                  <Card key={order.id}>
-                    <CardHeader className="flex justify-between items-center">
-                      <CardTitle>
-                        #{order.order.id.slice(-6)} • 
-                        <Link
-                          href={`/customer-end-pages/${order.order.restaurant.name.toLowerCase().replace(/\s+/g, '-')}/orders/${order.order.track_code}`}
-                          target="_blank"
-                          className="text-blue-600 hover:underline ml-1"
-                        >
-                          Code: {order.order.track_code}
-                        </Link>
-                      </CardTitle>
-                      <Badge>{getStatusIcon(order.status)} {order.status}</Badge>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex justify-between mb-3">
-                        <div>
-                          <h3 className="font-semibold">{order.menu_item?.name}</h3>
-                          <p className="text-sm">Qty: {order.quantity}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold">${(order.price * order.quantity).toFixed(2)}</p>
-                          <p className="text-xs">${order.price.toFixed(2)} each</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" disabled={isUpdating || order.status!=="Pending"} onClick={() => handleUpdate(order.order.id,"Confirmed")}>
-                          {isUpdating ? "Updating..." : "Confirm"}
-                        </Button>
-                        <div className="flex items-center gap-2">
-                          <select
-                            className="border rounded px-2 py-1 text-sm"
-                            value={eta}
-                            onChange={(e)=>setEtaChoice(prev=>({...prev,[order.order.id]:Number(e.target.value)}))}
-                            disabled={isUpdating}
-                          >
-                            {ETA_PRESETS.map(m => <option key={m} value={m}>{m} min</option>)}
-                          </select>
-                          <Button size="sm" disabled={isUpdating || !["Pending","Confirmed"].includes(order.status)} onClick={() => handleUpdate(order.order.id,"Preparing",eta)}>
-                            {isUpdating ? "Updating..." : `Preparing (${eta}m)`}
-                          </Button>
-                        </div>
-                        <Button size="sm" disabled={isUpdating || order.status!=="Preparing"} onClick={() => handleUpdate(order.order.id,"Ready")}>
-                          {isUpdating ? "Updating..." : "Ready"}
-                        </Button>
-                        <Button size="sm" variant="destructive" disabled={isUpdating || order.status==="Ready"} onClick={() => handleUpdate(order.order.id,"Cancelled")}>
-                          {isUpdating ? "Updating..." : "Cancel"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-center py-12">No orders found for {activeStatus}</p>
-          )}
-        </div>
       </Tabs>
+
+      <div>
+        {ordersToDisplay.length > 0 ? (
+          <div className="space-y-4">
+            {ordersToDisplay.map((order) => {
+              const isUpdating = updatingId === order.id;
+              return (
+                <Card key={order.id} className="shadow-md">
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-lg">
+                        Table {order.tables?.table_number || 'N/A'} - Order #{order.id.slice(-6)}
+                      </CardTitle>
+                      <Badge variant="outline" className="capitalize flex items-center gap-2">
+                        {getStatusIcon(order.status)} {order.status}
+                      </Badge>
+                    </div>
+                    <CardDescription>
+                      <Link href={`/customer-end-pages/${order.restaurants?.restaurant_name.toLowerCase().replace(/\s+/g, '-')}/orders/${order.track_code}`} target="_blank" className="text-blue-600 hover:underline text-xs font-mono">
+                        Track Code: {order.track_code}
+                      </Link>
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="divide-y">
+                      {order.order_items.map(item => (
+                        <li key={item.id} className="flex justify-between py-2 text-sm">
+                          <span>{item.quantity}x {item.menu_items?.name || 'Unknown Item'}</span>
+                          <span className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="border-t pt-3 mt-3 flex justify-end font-bold">
+                      Total: ₹{order.total_amount.toFixed(2)}
+                    </div>
+                  </CardContent>
+                  <div className="p-4 border-t bg-gray-50 flex flex-wrap items-center gap-2">
+                     {/* Action Buttons based on current status */}
+                     {order.status === 'pending' && (
+                        <Button size="sm" disabled={isUpdating} onClick={() => handleUpdate(order.id, "confirmed")}>
+                           Confirm Order
+                        </Button>
+                     )}
+                     {order.status === 'confirmed' && (
+                        <Button size="sm" disabled={isUpdating} onClick={() => handleUpdate(order.id, "preparing", 15)}>
+                           Start Preparing
+                        </Button>
+                     )}
+                      {order.status === 'preparing' && (
+                        <Button size="sm" variant="secondary" disabled={isUpdating} onClick={() => handleUpdate(order.id, "ready")}>
+                           Mark as Ready
+                        </Button>
+                     )}
+                      <Button size="sm" variant="destructive" disabled={isUpdating || order.status === 'ready' || order.status === 'complete'} onClick={() => handleUpdate(order.id, "cancelled")}>
+                        Cancel
+                      </Button>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-center text-gray-500 py-12">No live orders with status "{activeStatus}".</p>
+        )}
+      </div>
     </div>
   );
 };

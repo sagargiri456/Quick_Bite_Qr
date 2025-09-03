@@ -1,20 +1,40 @@
 'use client';
-import { useState, useEffect, useCallback } from "react";
+
+import { useCallback, useEffect, useState } from 'react';
+
+interface Table {
+  id: number;
+  table_number: string;
+  qr_code_url?: string | null;
+  created_at?: string;
+}
 
 export function useTables() {
-  const [tables, setTables] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tables, setTables] = useState<Table[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchTables = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
     try {
-      setLoading(true);
-      const res = await fetch("/api/tables");
-      if (!res.ok) throw new Error(await res.text());
+      const res = await fetch('/api/tables', {
+        method: 'GET',
+        // This line is critical for sending the auth cookie
+        credentials: 'include', 
+      });
+
+      if (!res.ok) {
+        const errText = await res.json();
+        throw new Error(errText.error || `Failed to fetch tables: ${res.statusText}`);
+      }
+
       const data = await res.json();
       setTables(data);
     } catch (err: any) {
-      setError(err.message || "Failed to fetch tables");
+      console.error(err);
+      setError(err.message || 'Failed to fetch tables');
     } finally {
       setLoading(false);
     }
@@ -24,25 +44,26 @@ export function useTables() {
     fetchTables();
   }, [fetchTables]);
 
-  const addTable = async (table: { table_number: string; qr_code_url: string; restaurant_id: string }) => {
-    const res = await fetch("/api/tables", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(table),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    await fetchTables(); // refresh
-  };
-
   const deleteTable = async (id: number) => {
-    const res = await fetch("/api/tables", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    await fetchTables(); // refresh
+    const originalTables = [...tables];
+    setTables(prevTables => prevTables.filter(table => table.id !== id));
+
+    try {
+      const res = await fetch(`/api/tables/${id}`, {
+        method: 'DELETE',
+        credentials: 'include', // Also required here
+      });
+      if (!res.ok) {
+        setTables(originalTables);
+        throw new Error('Failed to delete table');
+      }
+    } catch (err) {
+      setTables(originalTables);
+      setError('Could not delete the table. Please try again.');
+      console.error(err);
+      throw err;
+    }
   };
 
-  return { tables, loading, error, addTable, deleteTable, refetch: fetchTables };
+  return { tables, loading, error, refetch: fetchTables, deleteTable };
 }

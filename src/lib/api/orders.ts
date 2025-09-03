@@ -28,6 +28,7 @@ export async function submitOrder(
   const res = await fetch('/api/orders', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ cartItems, restaurantId, tableId, totalAmount }),
   });
 
@@ -43,7 +44,7 @@ export async function submitOrder(
  * Get order details from backend.
  */
 export async function getOrderById(orderId: string): Promise<OrderRow | null> {
-  const res = await fetch(`/api/orders/${orderId}`);
+  const res = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
   if (!res.ok) return null;
   return res.json();
 }
@@ -59,6 +60,7 @@ export async function setOrderStatus(
   const res = await fetch(`/api/orders/${orderId}/status`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ status, etaMinutes }),
   });
 
@@ -78,6 +80,7 @@ export async function setOrderEta(orderId: string, etaMinutes: number | null): P
     const res = await fetch(`/api/orders/${orderId}/eta`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ etaMinutes }),
     });
     return res.ok;

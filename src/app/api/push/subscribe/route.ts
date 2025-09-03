@@ -1,31 +1,35 @@
-import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { NextResponse } from "next/server";
+import { createServerClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
-  try {
-    const { orderId, subscription } = await req.json();
-    if (!orderId || !subscription?.endpoint) {
-      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
-    }
+  const supabase = createServerClient();
+  const body = await req.json();
 
-    const p256dh = subscription.keys?.p256dh;
-    const auth = subscription.keys?.auth;
+  // FIXED: Removed user auth check. Subscriptions are tied to an orderId, which is secure enough for this public action.
+  // The 'user_id' can be left null for guest customers.
 
-    const supabase = await createServerClient();
-    // Upsert by endpoint to avoid duplicates
-    const { error } = await supabase
-      .from('web_push_subscriptions')
-      .upsert({
-        order_id: orderId,
-        endpoint: subscription.endpoint,
-        p256dh, auth
-      }, { onConflict: 'endpoint' });
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-    return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Unknown error' }, { status: 500 });
+  const { orderId, subscription } = body;
+  if (!subscription?.endpoint || !subscription?.keys) {
+    return NextResponse.json({ error: "Invalid subscription data" }, { status: 400 });
   }
+
+  const { endpoint, keys } = subscription;
+
+  const { error } = await supabase.from("web_push_subscriptions").upsert(
+    {
+      // user_id will be null for customers
+      order_id: orderId || null,
+      endpoint,
+      p256dh: keys.p256dh,
+      auth: keys.auth,
+    },
+    { onConflict: "endpoint" } // Update the order_id if the endpoint already exists
+  );
+
+  if (error) {
+    console.error("Failed to save subscription:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
 }
