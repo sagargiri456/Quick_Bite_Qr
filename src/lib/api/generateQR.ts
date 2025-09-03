@@ -1,5 +1,5 @@
 // src/lib/api/generateQR.ts
-export const generateQR = async (restaurantId: string, tableNumber: string) => {
+export const generateQR = async (restaurantId: string, tableNumber: number) => {
   const res = await fetch("/api/create-table", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

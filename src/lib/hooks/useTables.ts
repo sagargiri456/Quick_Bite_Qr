@@ -15,30 +15,34 @@ export function useTables() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchTables = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  setLoading(true);
+  setError(null);
 
-    try {
-      const res = await fetch('/api/tables', {
-        method: 'GET',
-        // This line is critical for sending the auth cookie
-        credentials: 'include', 
-      });
+  try {
+    const res = await fetch('/api/tables', {
+      method: 'GET',
+      credentials: 'include',
+    });
 
-      if (!res.ok) {
-        const errText = await res.json();
-        throw new Error(errText.error || `Failed to fetch tables: ${res.statusText}`);
+    if (!res.ok) {
+      let errText: any = {};
+      try {
+        errText = await res.json();
+      } catch {
+        // response not JSON, leave errText as {}
       }
-
-      const data = await res.json();
-      setTables(data);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Failed to fetch tables');
-    } finally {
-      setLoading(false);
+      throw new Error(errText.error || `Failed to fetch tables: ${res.statusText}`);
     }
-  }, []);
+
+    const data = await res.json();
+    setTables(data);
+  } catch (err: any) {
+    console.error(err);
+    setError(err.message || 'Failed to fetch tables');
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => {
     fetchTables();
