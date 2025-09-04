@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
+// Client-only component
 import AuthListener from "@/components/AuthListener";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -35,11 +36,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        {/* Global client-side hooks/components */}
+      <body suppressHydrationWarning className={inter.className}>
+        {/* Client-only auth state listener */}
         <AuthListener />
 
-        {/* Main app pages */}
+        {/* Main app content */}
         {children}
       </body>
     </html>
