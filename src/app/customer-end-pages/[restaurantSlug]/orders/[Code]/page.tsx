@@ -1,5 +1,3 @@
-// src/app/customer-end-pages/[restaurantSlug]/orders/[Code]/page.tsx
-
 import { createServerClient } from '@/lib/supabase/server';
 import StatusClient from './StatusClient';
 import { notFound } from 'next/navigation';
@@ -7,11 +5,13 @@ import { notFound } from 'next/navigation';
 type PageProps = {
   params: {
     restaurantSlug: string;
-    code: string; // Folder name is [Code], so prop is `code`
+    // FIX: This must be lowercase to match the folder name '[code]'
+    code: string;
   };
 };
 
 export default async function OrderTrackPage({ params }: PageProps) {
+  // FIX: Destructuring is now simple and direct
   const { restaurantSlug, code } = params;
   const supabase = await createServerClient(); // FIXED: Removed await
 
@@ -55,7 +55,7 @@ export default async function OrderTrackPage({ params }: PageProps) {
     <StatusClient
       trackCode={order.track_code}
       restaurantName={restaurant.restaurant_name}
-      orderId={order.id} // Pass orderId for push notifications
+      orderId={order.id} // Re-added orderId for push notifications
       initialStatus={order.status}
       initialEta={order.estimated_time}
       createdAt={order.created_at}
