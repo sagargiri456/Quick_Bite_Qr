@@ -38,13 +38,13 @@ export default async function OrderHistoryPage() {
   const supabase = await createServerClient();
 
   // 1. Get the authenticated user (server-side)
-  const { data: { user } } = await (await supabase).auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     redirect('/login'); // Redirect if not logged in
   }
 
   // 2. Find the user's restaurant
-  const { data: restaurant, error: restaurantError } = await (await supabase)
+  const { data: restaurant, error: restaurantError } = await supabase
     .from("restaurants")
     .select("id")
     .eq("user_id", user.id)
@@ -60,7 +60,7 @@ export default async function OrderHistoryPage() {
   }
 
   // 3. Fetch all orders
-  const { data: orders, error: ordersError } = await (await supabase)
+  const { data: orders, error: ordersError } = await supabase
     .from("orders")
     .select("id, status, total_amount, created_at, track_code")
     .eq("restaurant_id", restaurant.id)

@@ -35,7 +35,7 @@ export async function GET(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = await await createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
 
   const { data, error } = await supabase
     .from("menu_items")
@@ -55,7 +55,7 @@ export async function PUT(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = await await createServerClient(); // FIXED: Removed await
+  const supabase =await createServerClient(); // FIXED: Removed await
   
   // Authorization check
   const isOwner = await verifyOwnership(supabase, params.id);
@@ -91,7 +91,7 @@ export async function DELETE(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = await await createServerClient(); // FIXED: Removed await
+  const supabase =await createServerClient(); // FIXED: Removed await
 
   // Authorization check
   const isOwner = await verifyOwnership(supabase, params.id);
