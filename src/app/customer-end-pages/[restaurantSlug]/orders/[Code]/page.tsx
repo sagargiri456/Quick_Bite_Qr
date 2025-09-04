@@ -1,64 +1,87 @@
 import { createServerClient } from '@/lib/supabase/server';
 import StatusClient from './StatusClient';
 import { notFound } from 'next/navigation';
+import { OrderItem } from '@/app/customer-end-pages/store/cartStore';
 
 type PageProps = {
-  params: {
-    restaurantSlug: string;
-    // FIX: This must be lowercase to match the folder name '[code]'
-    code: string;
-  };
+  params: {
+    restaurantSlug: string;
+    code: string;
+  };
+};
+
+// Define a more specific type for order items
+type OrderItemWithDetails = {
+  quantity: number;
+  price: number;
+  menu_items: {
+    name: string;
+  } | null;
 };
 
 export default async function OrderTrackPage({ params }: PageProps) {
-  // FIX: Destructuring is now simple and direct
-  const { restaurantSlug, code } = params;
-  const supabase = await createServerClient(); // FIXED: Removed await
+  const { restaurantSlug, code } = params;
+  const supabase = await createServerClient();
 
-  // Step 1: Fetch order by tracking code
-  const { data: order, error: orderError } = await supabase
-    .from('orders')
-    .select('id, track_code, status, estimated_time, created_at, restaurant_id')
-    .eq('track_code', code)
-    .single();
+  // Step 1: Fetch order by tracking code
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .select('id, track_code, status, total_amount, estimated_time, created_at, restaurant_id')
+    .eq('track_code', code)
+    .single();
 
-  if (orderError || !order) {
-    console.log(`Order not found for code: ${code}.`);
-    notFound();
+  if (orderError || !order) {
+    notFound();
+  }
+  
+  // Step 2: Fetch the associated restaurant details, including the logo
+  const { data: restaurant, error: restaurantError } = await supabase
+    .from('restaurants')
+    .select('restaurant_name, slug, logo_url')
+    .eq('id', order.restaurant_id)
+    .single();
+
+  if (restaurantError || !restaurant) {
+    return <div className="p-8 text-center text-red-600">Error: Could not find restaurant information.</div>;
+  }
+
+  // Step 3: Fetch the items associated with the order
+  const { data: orderItems, error: itemsError } = await supabase
+    .from('order_items')
+    .select(`
+      quantity,
+      price,
+      menu_items ( name )
+    `)
+    .eq('order_id', order.id);
+
+  if (itemsError) {
+    console.error(`Error fetching items for order ${order.id}:`, itemsError);
+    // Continue without items if there's an error
   }
 
-  // Step 2: Fetch the associated restaurant
-  if (!order.restaurant_id) {
-    console.error(`CRITICAL: Order ${order.id} is missing a restaurant_id.`);
-    return <div className="p-8 text-center text-red-600">Error: Order data is corrupted.</div>;
-  }
 
-  const { data: restaurant, error: restaurantError } = await supabase
-    .from('restaurants')
-    .select('restaurant_name, slug')
-    .eq('id', order.restaurant_id)
-    .single();
+  // Step 4: Validate the URL slug
+  if (restaurant.slug !== restaurantSlug) {
+    notFound();
+  }
 
-  if (restaurantError || !restaurant) {
-    console.error(`CRITICAL: Restaurant not found for id: ${order.restaurant_id}.`);
-    return <div className="p-8 text-center text-red-600">Error: Could not find restaurant information.</div>;
-  }
-
-  // Step 3: Validate the URL slug
-  if (restaurant.slug !== restaurantSlug) {
-    console.warn(`Slug mismatch. URL: "${restaurantSlug}", DB: "${restaurant.slug}"`);
-    notFound();
-  }
-
-  // All data is valid, now render the client component with the correct props.
-  return (
-    <StatusClient
-      trackCode={order.track_code}
-      restaurantName={restaurant.restaurant_name}
-      orderId={order.id} // Re-added orderId for push notifications
-      initialStatus={order.status}
-      initialEta={order.estimated_time}
-      createdAt={order.created_at}
-    />
-  );
+  // All data is valid, now render the client component with the new props.
+  return (
+    <StatusClient
+      initialOrder={{
+        id: order.id,
+        trackCode: order.track_code,
+        status: order.status,
+        eta: order.estimated_time,
+        createdAt: order.created_at,
+        totalAmount: order.total_amount,
+        items: (orderItems as OrderItemWithDetails[] | null) || [],
+      }}
+      restaurant={{
+        name: restaurant.restaurant_name,
+        logoUrl: restaurant.logo_url
+      }}
+    />
+  );
 }
