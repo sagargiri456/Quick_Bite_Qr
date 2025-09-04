@@ -1,4 +1,3 @@
-// src/app/customer-end-pages/PublicPagesComponents/Cart.tsx
 'use client';
 
 import { useState } from 'react';
@@ -7,55 +6,49 @@ import CartItem from './CartItem';
 import { X, ShoppingCart, Loader2 } from 'lucide-react';
 import { submitOrder } from '@/lib/api/orders';
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
 
 interface CartProps {
   isOpen: boolean;
   onClose: () => void;
   restaurantId: string;
   tableId: string;
-  restaurantSlug: string;
+  restaurantSlug: string; // needed for redirect
 }
 
 const formatPrice = (price: number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(price);
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
 
 export default function Cart({ isOpen, onClose, restaurantId, tableId, restaurantSlug }: CartProps) {
   const router = useRouter();
   const { items, totalPrice, clearCart } = useCartStore();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [orderSuccess, setOrderSuccess] = useState(false);
 
   const handlePlaceOrder = async () => {
-    if (items.length === 0) {
-        toast.error("Your cart is empty.");
-        return;
-    }
     setIsPlacingOrder(true);
     try {
       const total = totalPrice();
-      const { success, trackCode, restaurantSlug: slug } = await submitOrder(items, restaurantId, tableId, total);
+      const { success, orderId } = await submitOrder(items, restaurantId, String(tableId), total);
 
-      if (success && trackCode && slug) {
+      if (success && orderId) {
+        setOrderSuccess(true);
         clearCart();
-        toast.success("Order placed successfully!");
-        // Redirect to the order tracking page. The route is correct based on folder structure.
-        router.push(`/customer-end-pages/${slug}/orders/${trackCode}`);
-        onClose(); // Close the cart on success
-      } else {
-        toast.error('Order could not be placed. Please try again.');
+        router.push(`/customer-end-pages/${restaurantSlug}/orders/${orderId}`);
+        return;
       }
-    } catch (error: any) {
+
+      alert('Order could not be placed. Please try again.');
+    } catch (error) {
       console.error(error);
-      toast.error(error.message || 'There was an error placing your order.');
+      alert('There was an error placing your order. Please try again.');
     } finally {
       setIsPlacingOrder(false);
     }
   };
 
   const handleClose = () => {
-    if (!isPlacingOrder) {
-        onClose();
-    }
+    onClose();
+    setTimeout(() => setOrderSuccess(false), 300);
   };
 
   return (
@@ -83,38 +76,47 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId, restauran
           </div>
 
           {/* Content */}
-          <div className="flex-grow p-6 overflow-y-auto">
-            {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
-                <ShoppingCart size={48} className="mb-4" />
-                <p className="font-semibold">Your cart is currently empty.</p>
-              </div>
-            ) : (
-              <div className="divide-y">
-                {items.map((item) => (
-                  <CartItem key={item.id} item={item} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {items.length > 0 && (
-            <div className="p-6 border-t bg-gray-50">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-lg font-semibold text-gray-800">Subtotal</span>
-                <span className="text-xl font-bold text-gray-900">
-                  {formatPrice(totalPrice())}
-                </span>
-              </div>
-              <button
-                onClick={handlePlaceOrder}
-                disabled={isPlacingOrder}
-                className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center"
-              >
-                {isPlacingOrder && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-                {isPlacingOrder ? 'Placing Order...' : 'Place Order'}
-              </button>
+          {orderSuccess ? (
+            <div className="flex flex-col items-center justify-center h-full text-center text-gray-700 p-6">
+              <h3 className="text-2xl font-bold text-green-600">Order Placed!</h3>
+              <p className="mt-2">Redirecting to tracking page…</p>
             </div>
+          ) : (
+            <>
+              <div className="flex-grow p-6 overflow-y-auto">
+                {items.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
+                    <ShoppingCart size={48} className="mb-4" />
+                    <p className="font-semibold">Your cart is currently empty.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {items.map((item) => (
+                      <CartItem key={item.id} item={item} />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {items.length > 0 && (
+                <div className="p-6 border-t bg-gray-50">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-lg font-semibold text-gray-800">Subtotal</span>
+                    <span className="text-xl font-bold text-gray-900">
+                      {formatPrice(totalPrice())}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handlePlaceOrder}
+                    disabled={isPlacingOrder}
+                    className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {isPlacingOrder && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                    {isPlacingOrder ? 'Placing Order...' : 'Place Order'}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
