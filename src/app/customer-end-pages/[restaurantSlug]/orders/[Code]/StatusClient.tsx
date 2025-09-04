@@ -68,7 +68,7 @@ export default function StatusClient({ initialOrder, restaurant }: StatusClientP
     registerPushForOrder(initialOrder.id);
   }, [initialOrder.id]);
 
-  // Real-time subscription for status and ETA updates
+  // This effect handles real-time page updates via Supabase channels. This is the primary, efficient method.
   useEffect(() => {
     const channel = supabase
       .channel(`order-${initialOrder.trackCode}`)
@@ -86,31 +86,7 @@ export default function StatusClient({ initialOrder, restaurant }: StatusClientP
     return () => { supabase.removeChannel(channel); };
   }, [initialOrder.trackCode]);
 
-  // This effect polls for updates as a backup
-  useEffect(() => {
-    const pollOrderStatus = async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('status, estimated_time')
-        .eq('track_code', initialOrder.trackCode)
-        .single();
-
-      if (error) {
-        console.warn('Polling for order status failed:', error.message);
-        return;
-      }
-
-      if (data) {
-        setStatus(dbToUiStatus(data.status));
-        setEta(data.estimated_time);
-      }
-    };
-
-    const intervalId = setInterval(pollOrderStatus, 5000); // 5000 ms = 5 seconds
-
-    // Clean up the interval when the component unmounts
-    return () => clearInterval(intervalId);
-  }, [initialOrder.trackCode]);
+  // ✅ REMOVED: The inefficient 5-second polling `useEffect` block has been removed.
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -186,7 +162,6 @@ export default function StatusClient({ initialOrder, restaurant }: StatusClientP
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-800">Order Progress</h2>
             <div className="text-right">
-                {/* ✅ THIS IS THE CORRECTED LINE */}
                 <span className="text-sm font-medium text-gray-500">Estimated Time</span>
                 <ETA currentStatus={status} etaMinutes={eta} />
             </div>
