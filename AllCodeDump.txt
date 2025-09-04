@@ -81,9 +81,10 @@ const res = await fetch(
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\menu\[id]\route.ts -----
 
+// src/app/api/menu/[id]/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { get } from "http";
 
 // Helper function to verify ownership
 async function verifyOwnership(supabase: any, menuItemId: string): Promise<boolean> {
@@ -98,8 +99,17 @@ async function verifyOwnership(supabase: any, menuItemId: string): Promise<boole
 
   if (error || !menuItem) return false;
 
-  // Assumes restaurant_id in menu_items is the same as the user's ID
-  return menuItem.restaurant_id === user.id;
+  // Assumes restaurant_id in menu_items corresponds to the user's ID
+  // A better approach would be to join with the restaurants table to check user_id.
+  const { data: restaurant } = await supabase
+    .from('restaurants')
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!restaurant) return false;
+
+  return menuItem.restaurant_id === restaurant.id;
 }
 
 
@@ -108,7 +118,7 @@ export async function GET(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
   const { data, error } = await supabase
     .from("menu_items")
@@ -128,9 +138,9 @@ export async function PUT(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
   
-  // FIXED: Authorization check
+  // Authorization check
   const isOwner = await verifyOwnership(supabase, params.id);
   if (!isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -164,9 +174,9 @@ export async function DELETE(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
-  // FIXED: Authorization check
+  // Authorization check
   const isOwner = await verifyOwnership(supabase, params.id);
   if (!isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -186,11 +196,13 @@ export async function DELETE(
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\menu\route.ts -----
 
+// src/app/api/menu/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
   const body = await req.json();
 
   const {
@@ -200,11 +212,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Find restaurant for this user to get the correct restaurant_id
+  const { data: restaurant, error: restaurantError } = await supabase
+    .from("restaurants")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (restaurantError || !restaurant) {
+      return NextResponse.json({ error: "Restaurant not found for user" }, { status: 404 });
+  }
+
   const { data, error } = await supabase
     .from("menu_items")
     .insert([
       {
-        restaurant_id: body.restaurant_id ?? user.id, // fallback to user.id
+        restaurant_id: restaurant.id, // Use the fetched restaurant ID
         name: body.name,
         description: body.description,
         price: body.price,
@@ -225,12 +248,14 @@ export async function POST(req: Request) {
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\menus\route.ts -----
 
+// src/app/api/menus/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 // GET all menu items for the logged-in restaurant
 export async function GET() {
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
   const {
     data: { user },
@@ -238,11 +263,22 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  
+  // Find the restaurant for this user
+  const { data: restaurant, error: restaurantError } = await supabase
+    .from("restaurants")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (restaurantError || !restaurant) {
+    return NextResponse.json({ error: "Restaurant not found for this user" }, { status: 404 });
+  }
 
   const { data, error } = await supabase
     .from("menu_items")
     .select("*")
-    .eq("restaurant_id", user.id)
+    .eq("restaurant_id", restaurant.id) // Filter by restaurant_id
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -254,23 +290,34 @@ export async function GET() {
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\orders\recent\route.ts -----
 
+// src/app/api/orders/recent/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 export async function GET() {
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
-  // FIXED: Add authorization check
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  
+  // Find the restaurant for this user
+  const { data: restaurant, error: restaurantError } = await supabase
+    .from("restaurants")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (restaurantError || !restaurant) {
+    return NextResponse.json({ error: "Restaurant not found for this user" }, { status: 404 });
   }
 
   const { data, error } = await supabase
     .from("orders")
     .select("id, status, total_amount, created_at, track_code")
-    // FIXED: Filter orders by the logged-in restaurant's user_id
-    .eq("restaurant_id", user.id)
+    .eq("restaurant_id", restaurant.id) // FIXED: Filter by restaurant_id
     .order("created_at", { ascending: false })
     .limit(10);
 
@@ -283,6 +330,8 @@ export async function GET() {
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\orders\[id]\items\routes.ts -----
 
+// src/app/api/orders/[id]/items/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
@@ -290,26 +339,34 @@ export async function GET(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
-  // FIXED: Add authorization check to ensure the order belongs to the user
+  // Authorization check to ensure the order belongs to the user or is public
   const { data: { user } } = await supabase.auth.getUser();
-  if (user) { // If a dashboard user is logged in
-    const { count } = await supabase
-      .from('orders')
-      .select('*', { count: 'exact', head: true })
-      .eq('id', params.id)
-      .eq('restaurant_id', user.id);
-      
-    if (count === 0) {
-        // This check can be skipped for public customer access if desired
-        // return NextResponse.json({ error: "Order not found or unauthorized" }, { status: 404 });
+  if (user) { // If a dashboard user is logged in, verify ownership
+    const { data: restaurant } = await supabase
+        .from('restaurants')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+    if (restaurant) {
+        const { count } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('id', params.id)
+          .eq('restaurant_id', restaurant.id);
+        
+        // If the order does not belong to the restaurant, deny access.
+        if (count === 0) {
+            return NextResponse.json({ error: "Order not found or unauthorized" }, { status: 404 });
+        }
     }
   }
 
   const { data, error } = await supabase
     .from("order_items")
-    .select("*, menu_items(name, price)") // Corrected table name
+    .select("*, menu_items(name, price)") // Joined query to get item details
     .eq("order_id", params.id);
 
   if (error) {
@@ -321,23 +378,36 @@ export async function GET(
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\orders\[id]\status\route.ts -----
 
+// src/app/api/orders/[id]/status/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
   
-  // FIXED: Authorization check
+  // Authorization check
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Find restaurant for this user
+  const { data: restaurant, error: restaurantError } = await supabase
+    .from("restaurants")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (restaurantError || !restaurant) {
+      return NextResponse.json({ error: "Restaurant not found for user" }, { status: 404 });
   }
 
   const { count, error: checkError } = await supabase
     .from('orders')
     .select('*', { count: 'exact', head: true })
     .eq('id', params.id)
-    .eq('restaurant_id', user.id);
+    .eq('restaurant_id', restaurant.id);
   
   if (checkError || count === 0) {
       return NextResponse.json({ error: "Order not found or you do not have permission to modify it." }, { status: 404 });
@@ -379,7 +449,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       orderId: params.id,
-      title: `Order ${status}`,
+      title: `Order Status: ${status}`,
       message: note || `Your order is now ${status}`,
     }),
   });
@@ -389,13 +459,43 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\orders\[id]\route.ts -----
 
+// src/app/api/orders/[id]/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
   const { status, note, etaMinutes } = await req.json();
   const orderId = params.id;
+
+  // FIXED: Added Authorization check
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  
+  // Find restaurant for this user
+  const { data: restaurant, error: restaurantError } = await supabase
+    .from("restaurants")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (restaurantError || !restaurant) {
+      return NextResponse.json({ error: "Restaurant not found for user" }, { status: 404 });
+  }
+  
+  // Verify the order belongs to this restaurant
+  const { count, error: checkError } = await supabase
+    .from('orders')
+    .select('*', { count: 'exact', head: true })
+    .eq('id', orderId)
+    .eq('restaurant_id', restaurant.id);
+
+  if (checkError || count === 0) {
+    return NextResponse.json({ error: "Order not found or permission denied." }, { status: 404 });
+  }
 
   // 1. Update order status
   const { error: updateError } = await supabase
@@ -417,7 +517,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
   // 3. Send notification
   try {
-    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/push/notify`, {
+    await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/push/notify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -435,13 +535,14 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\orders\route.ts -----
 
+// src/app/api/orders/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 // GET all orders for logged-in restaurant
 export async function GET() {
-  // FIXED: The call to createServerClient() must now be awaited.
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
   const {
     data: { user },
@@ -450,11 +551,22 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  
+  // Find restaurant for this user
+  const { data: restaurant, error: restaurantError } = await supabase
+    .from("restaurants")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (restaurantError || !restaurant) {
+      return NextResponse.json({ error: "Restaurant not found for user" }, { status: 404 });
+  }
 
   const { data, error } = await supabase
     .from("orders")
-    .select("*, order_items(*, menu_items(name)), restaurants(restaurant_name), tables(table_number)")
-    .eq("restaurant_id", user.id)
+    .select("*, order_items(*, menu_items(name)), restaurants(restaurant_name, slug), tables(table_number)")
+    .eq("restaurant_id", restaurant.id) // FIXED: filter by restaurant ID
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -466,8 +578,7 @@ export async function GET() {
 
 // POST create a new order (public endpoint for customers)
 export async function POST(req: Request) {
-  // FIXED: The call must also be awaited here.
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
   const body = await req.json();
   
   const { restaurantId, tableId, totalAmount, cartItems } = body;
@@ -501,6 +612,7 @@ export async function POST(req: Request) {
 
     const { error: itemsError } = await supabase.from("order_items").insert(itemsPayload);
     if(itemsError) {
+        // Rollback order creation if items fail to insert
         await supabase.from('orders').delete().eq('id', order.id);
         return NextResponse.json({ error: `Could not save order items: ${itemsError.message}` }, { status: 500 });
     }
@@ -521,12 +633,14 @@ export async function POST(req: Request) {
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\profile\route.ts -----
 
+// src/app/api/profile/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 // GET restaurant profile for current user
 export async function GET() {
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
   const {
     data: { user },
@@ -543,7 +657,7 @@ export async function GET() {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 404 });
+    return NextResponse.json({ error: "Profile not found for this user." }, { status: 404 });
   }
 
   return NextResponse.json(data);
@@ -551,7 +665,7 @@ export async function GET() {
 
 // PUT update restaurant profile
 export async function PUT(req: Request) {
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
   const body = await req.json();
 
   const {
@@ -589,6 +703,8 @@ export async function PUT(req: Request) {
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\push\notify\route.ts -----
 
+// src/app/api/push/notify/route.ts
+
 import { NextResponse } from 'next/server';
 import webpush from 'web-push';
 import { createServerClient } from '@/lib/supabase/server';
@@ -599,40 +715,39 @@ const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@example.com';
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
-/**
- * POST body: { orderId, title, body, url? }
- * Sends to all subscriptions bound to the order
- */
 export async function POST(req: Request) {
   try {
-    const { orderId, title, body, url } = await req.json();
+    const { orderId, title, message, url } = await req.json(); // Changed 'body' to 'message' for clarity
     if (!orderId) return NextResponse.json({ error: 'orderId required' }, { status: 400 });
 
-    const supabase = await createServerClient();
+    const supabase = createServerClient(); // FIXED: Removed await
     const { data: subs, error } = await supabase
       .from('web_push_subscriptions')
       .select('*')
       .eq('order_id', orderId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!subs || subs.length === 0) {
+        return NextResponse.json({ ok: true, message: "No subscriptions found for this order." });
+    }
 
-    const payload = JSON.stringify({ title: title || 'Order update', body: body || '', data: { url } });
+    const payload = JSON.stringify({ title: title || 'Order update', body: message || '', data: { url } });
 
     const results = await Promise.allSettled(
-      (subs || []).map(async (s) => {
+      subs.map(async (s) => {
         const subscription = {
           endpoint: s.endpoint,
           keys: { p256dh: s.p256dh, auth: s.auth }
-        } as any;
+        } as webpush.PushSubscription;
         try {
           await webpush.sendNotification(subscription, payload);
-          return { ok: true };
+          return { ok: true, endpoint: s.endpoint };
         } catch (err: any) {
-          // If gone, consider deleting the subscription
-          if (err?.statusCode === 404 || err?.statusCode === 410) {
+          // If subscription is gone, delete it from the DB
+          if (err.statusCode === 404 || err.statusCode === 410) {
             await supabase.from('web_push_subscriptions').delete().eq('endpoint', s.endpoint);
           }
-          return { ok: false, error: err?.message };
+          return { ok: false, error: err?.message, endpoint: s.endpoint };
         }
       })
     );
@@ -644,6 +759,8 @@ export async function POST(req: Request) {
 }
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\push\subscribe\route.ts -----
+
+// src/app/api/push/subscribe/route.ts
 
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
@@ -658,8 +775,12 @@ export async function POST(req: Request) {
     const p256dh = subscription.keys?.p256dh;
     const auth = subscription.keys?.auth;
 
-    const supabase = await createServerClient();
-    // Upsert by endpoint to avoid duplicates
+    if (!p256dh || !auth) {
+        return NextResponse.json({ error: 'Subscription is missing keys' }, { status: 400 });
+    }
+
+    const supabase = createServerClient(); // FIXED: Removed await
+    // Upsert by endpoint to avoid duplicates and update order_id if needed
     const { error } = await supabase
       .from('web_push_subscriptions')
       .upsert({
@@ -678,6 +799,8 @@ export async function POST(req: Request) {
 }
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\tables\[id]\route.ts -----
+
+// src/app/api/tables/[id]/route.ts
 
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
@@ -709,7 +832,7 @@ async function verifyOwnership(supabase: any, tableId: string): Promise<boolean>
 
 // GET single table details
 export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
   const { data, error } = await supabase
     .from("tables")
@@ -718,7 +841,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 404 });
+    return NextResponse.json({ error: "Table not found." }, { status: 404 });
   }
 
   return NextResponse.json(data);
@@ -726,9 +849,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 
 // PUT update table info
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
-  // FIXED: Authorization check
   const isOwner = await verifyOwnership(supabase, params.id);
   if (!isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -753,9 +875,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 // DELETE single table
 export async function DELETE(_: Request, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
-  // FIXED: Authorization check
   const isOwner = await verifyOwnership(supabase, params.id);
   if (!isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -772,13 +893,14 @@ export async function DELETE(_: Request, { params }: { params: { id: string } })
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\api\tables\route.ts -----
 
+// src/app/api/tables/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 // GET all tables for the current restaurant
 export async function GET() {
-  // FIXED: The call to createServerClient() must be awaited
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
   // 1. Get the logged in user
   const {
@@ -814,13 +936,12 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data || []); // Return empty array if data is null
+  return NextResponse.json(data || []);
 }
 
 // POST create a new table
 export async function POST(req: Request) {
-  // FIXED: The call must also be awaited here
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
   const body = await req.json();
 
   const {
@@ -935,7 +1056,7 @@ interface CartProps {
   onClose: () => void;
   restaurantId: string;
   tableId: string;
-  restaurantSlug: string; // FIXED: Ensure this prop is received
+  restaurantSlug: string;
 }
 
 const formatPrice = (price: number) =>
@@ -947,20 +1068,24 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId, restauran
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   const handlePlaceOrder = async () => {
+    if (items.length === 0) {
+        toast.error("Your cart is empty.");
+        return;
+    }
     setIsPlacingOrder(true);
     try {
       const total = totalPrice();
-      // The API call now includes the cart items
       const { success, trackCode, restaurantSlug: slug } = await submitOrder(items, restaurantId, tableId, total);
 
       if (success && trackCode && slug) {
         clearCart();
         toast.success("Order placed successfully!");
-        // Redirect to the order tracking page
+        // Redirect to the order tracking page. The route is correct based on folder structure.
         router.push(`/customer-end-pages/${slug}/orders/${trackCode}`);
-        return;
+        onClose(); // Close the cart on success
+      } else {
+        toast.error('Order could not be placed. Please try again.');
       }
-      toast.error('Order could not be placed. Please try again.');
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || 'There was an error placing your order.');
@@ -970,7 +1095,9 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId, restauran
   };
 
   const handleClose = () => {
-    onClose();
+    if (!isPlacingOrder) {
+        onClose();
+    }
   };
 
   return (
@@ -1039,6 +1166,8 @@ export default function Cart({ isOpen, onClose, restaurantId, tableId, restauran
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\customer-end-pages\PublicPagesComponents\CartItem.tsx -----
 
+// src/app/customer-end-pages/PublicPagesComponents/CartItem.tsx
+
 'use client';
 
 import Image from 'next/image';
@@ -1049,14 +1178,15 @@ interface CartItemProps {
   item: CartItemType;
 }
 
-const formatPrice = (price: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
+// FIXED: Changed currency to INR to be consistent with the rest of the app
+const formatPrice = (price: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(price);
 
 export default function CartItem({ item }: CartItemProps) {
   const { addItem, removeItem } = useCartStore();
 
   return (
     <div className="flex items-center gap-4 py-4">
-      <div className="relative h-16 w-16 rounded-lg overflow-hidden">
+      <div className="relative h-16 w-16 rounded-lg overflow-hidden flex-shrink-0">
         {item.photo_url ? (
           <Image src={item.photo_url} alt={item.name} layout="fill" objectFit="cover" />
         ) : (
@@ -1082,18 +1212,21 @@ export default function CartItem({ item }: CartItemProps) {
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\customer-end-pages\PublicPagesComponents\CustomerMenuItemCard.tsx -----
 
+// src/app/customer-end-pages/PublicPagesComponents/CustomerMenuItemCard.tsx
+
 'use client';
 
 import Image from 'next/image';
 import { MenuItem } from '@/types/menu';
 import { Plus } from 'lucide-react';
-// CORRECTED: Import from the new co-located path
 import { useCartStore } from '../store/cartStore'; 
+import { toast } from 'sonner';
 
+// FIXED: Changed currency to INR to be consistent
 const formatPrice = (price: number) => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'INR',
   }).format(price);
 };
 
@@ -1103,6 +1236,11 @@ interface CustomerMenuItemCardProps {
 
 export default function CustomerMenuItemCard({ item }: CustomerMenuItemCardProps) {
   const { addItem } = useCartStore();
+
+  const handleAddItem = () => {
+    addItem(item);
+    toast.success(`${item.name} added to cart!`);
+  }
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col group transition-all duration-300 hover:shadow-2xl">
@@ -1127,7 +1265,7 @@ export default function CustomerMenuItemCard({ item }: CustomerMenuItemCardProps
         <div className="flex justify-between items-center mt-4">
           <p className="text-xl font-bold text-gray-900">{formatPrice(item.price)}</p>
           <button 
-            onClick={() => addItem(item)}
+            onClick={handleAddItem}
             className="flex items-center gap-2 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
             <Plus size={16} />
@@ -1190,6 +1328,8 @@ export const useCartStore = create<CartState>((set, get) => ({
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\customer-end-pages\[restaurantSlug]\orders\[Code]\page.tsx -----
 
+// src/app/customer-end-pages/[restaurantSlug]/orders/[Code]/page.tsx
+
 import { createServerClient } from '@/lib/supabase/server';
 import StatusClient from './StatusClient';
 import { notFound } from 'next/navigation';
@@ -1197,15 +1337,13 @@ import { notFound } from 'next/navigation';
 type PageProps = {
   params: {
     restaurantSlug: string;
-    // FIX: This must be lowercase to match the folder name '[code]'
-    code: string;
+    code: string; // Folder name is [Code], so prop is `code`
   };
 };
 
 export default async function OrderTrackPage({ params }: PageProps) {
-  // FIX: Destructuring is now simple and direct
   const { restaurantSlug, code } = params;
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
   // Step 1: Fetch order by tracking code
   const { data: order, error: orderError } = await supabase
@@ -1247,7 +1385,7 @@ export default async function OrderTrackPage({ params }: PageProps) {
     <StatusClient
       trackCode={order.track_code}
       restaurantName={restaurant.restaurant_name}
-      orderId={order.id} // Re-added orderId for push notifications
+      orderId={order.id} // Pass orderId for push notifications
       initialStatus={order.status}
       initialEta={order.estimated_time}
       createdAt={order.created_at}
@@ -1937,164 +2075,374 @@ import { Button } from "@/components/ui/button";
 import { Search, Plus, Loader2 } from "lucide-react";
 import { MenuItem } from "@/types/menu";
 
+// NOTE: This component seems redundant with /dashboard/menu/page.tsx
+// Consider consolidating into one to simplify maintenance.
+
 export default function MenuItemsPage() {
-Â  const { menuItems, loading, error, deleteMenuItem } = useMenuItems();
-Â  const [searchTerm, setSearchTerm] = useState("");
-Â  const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
-Â  const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
+  const { menuItems, loading, error, deleteMenuItem } = useMenuItems();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
 
-Â  const filteredItems = useMemo(() => {
-Â  Â  return menuItems.filter((item) =>
-Â  Â  Â  item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-Â  Â  Â  item.description.toLowerCase().includes(searchTerm.toLowerCase())
-Â  Â  );
-Â  }, [searchTerm, menuItems]);
+  const filteredItems = useMemo(() => {
+    return menuItems.filter((item) =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm, menuItems]);
 
-Â  const handleDeleteClick = (item: MenuItem) => {
-Â  Â  setItemToDelete(item);
-Â  Â  setDeleteModalOpen(true);
-Â  };
+  const handleDeleteClick = (item: MenuItem) => {
+    setItemToDelete(item);
+    setDeleteModalOpen(true);
+  };
 
-Â  const confirmDelete = async () => {
-Â  Â  if (!itemToDelete) return;
-Â  Â  try {
-Â  Â  Â  await deleteMenuItem(itemToDelete.id);
-Â  Â  Â  toast.success(`"${itemToDelete.name}" was deleted successfully.`);
-Â  Â  } catch (err) {
-Â  Â  Â  toast.error("Failed to delete the item.");
-Â  Â  } finally {
-Â  Â  Â  setDeleteModalOpen(false);
-Â  Â  Â  setItemToDelete(null);
-Â  Â  }
-Â  };
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    try {
+      await deleteMenuItem(itemToDelete.id);
+      toast.success(`"${itemToDelete.name}" was deleted successfully.`);
+    } catch (err) {
+      toast.error("Failed to delete the item.");
+    } finally {
+      setDeleteModalOpen(false);
+      setItemToDelete(null);
+    }
+  };
 
-Â  return (
-Â  Â  <>
-Â  Â  Â  <div className="min-h-[80vh] px-4 sm:px-6 lg:px-8 py-8">
-Â  Â  Â  Â  <div className="max-w-7xl mx-auto space-y-6">
-Â  Â  Â  Â  Â  <div className="flex items-center justify-between">
-Â  Â  Â  Â  Â  Â  <h1 className="text-2xl font-bold text-slate-800">All Menu Items</h1>
-Â  Â  Â  Â  Â  Â  <Link href="/dashboard/menu/add">
-Â  Â  Â  Â  Â  Â  Â  <Button>
-Â  Â  Â  Â  Â  Â  Â  Â  <Plus className="w-4 h-4 mr-2" />
-Â  Â  Â  Â  Â  Â  Â  Â  Add New Item
-Â  Â  Â  Â  Â  Â  Â  </Button>
-Â  Â  Â  Â  Â  Â  </Link>
-Â  Â  Â  Â  Â  </div>
+  return (
+    <>
+      <div className="min-h-[80vh] px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-slate-800">All Menu Items</h1>
+            <Link href="/dashboard/menu/add">
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add New Item
+              </Button>
+            </Link>
+          </div>
 
-Â  Â  Â  Â  Â  <Card>
-Â  Â  Â  Â  Â  Â  <CardContent className="p-4">
-Â  Â  Â  Â  Â  Â  Â  <div className="relative flex-1 max-w-md">
-Â  Â  Â  Â  Â  Â  Â  Â  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-Â  Â  Â  Â  Â  Â  Â  Â  <Input placeholder="Search menu items..." className="pl-9" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-Â  Â  Â  Â  Â  Â  Â  </div>
-Â  Â  Â  Â  Â  Â  </CardContent>
-Â  Â  Â  Â  Â  </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Input placeholder="Search menu items..." className="pl-9" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              </div>
+            </CardContent>
+          </Card>
 
-Â  Â  Â  Â  Â  {loading ? (
-Â  Â  Â  Â  Â  Â  <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-slate-500" /></div>
-Â  Â  Â  Â  Â  ) : error ? (
-Â  Â  Â  Â  Â  Â  <div className="text-red-500 bg-red-50 p-4 rounded-lg">{error}</div>
-Â  Â  Â  Â  Â  ) : (
-Â  Â  Â  Â  Â  Â  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-Â  Â  Â  Â  Â  Â  Â  {filteredItems.map((item) => (
-Â  Â  Â  Â  Â  Â  Â  Â  <MenuItemCard key={item.id} item={item} onEdit={`/dashboard/menu/edit/${item.id}`} onDelete={() => handleDeleteClick(item)} />
-Â  Â  Â  Â  Â  Â  Â  ))}
-Â  Â  Â  Â  Â  Â  </div>
-Â  Â  Â  Â  Â  )}
-Â  Â  Â  Â  </div>
-Â  Â  Â  </div>
-Â  Â  Â  <DeleteConfirmation isOpen={isDeleteModalOpen} onClose={() => setDeleteModalOpen(false)} onConfirm={confirmDelete} itemName={itemToDelete?.name || ""} />
-Â  Â  </>
-Â  );
+          {loading ? (
+            <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-slate-500" /></div>
+          ) : error ? (
+            <div className="text-red-500 bg-red-50 p-4 rounded-lg">{error}</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {filteredItems.map((item) => (
+                // FIXED: Corrected the onEdit link to match the actual file structure
+                <MenuItemCard key={item.id} item={item} onEdit={`/dashboard/menu/${item.id}/edit`} onDelete={() => handleDeleteClick(item)} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <DeleteConfirmation isOpen={isDeleteModalOpen} onClose={() => setDeleteModalOpen(false)} onConfirm={confirmDelete} itemName={itemToDelete?.name || ""} />
+    </>
+  );
 }
 
------ D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\orders\page.ts -----
+----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\orders\LiveOrders.tsx -----
 
-// File: D:\01--PROJECTS--APPROTECH\commit-bfec44d\src\app\dashboard\orders\page.tsx
-import * as entry from '@/app/dashboard/orders/page.js'
-import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
+'use client';
 
-type TEntry = typeof import('@/app/dashboard/orders/page.js')
+import React, { useEffect, useMemo, useState } from 'react';
+import { supabase } from '@/lib/supabase/client';
+import LiveOrdersComponent from '@/components/LiveOrdersComponent';
+import { Input } from '@/components/ui/input';
+import { AlertTriangle } from 'lucide-react';
 
-type SegmentParams<T extends Object = any> = T extends Record<string, any>
-  ? { [K in keyof T]: T[K] extends string ? string | string[] | undefined : never }
-  : T
+export type OrderItemStatus = 'Pending' | 'Confirmed' | 'Preparing' | 'Ready' | 'Cancelled';
 
-// Check that the entry is a valid entry
-checkFields<Diff<{
-  default: Function
-  config?: {}
-  generateStaticParams?: Function
-  revalidate?: RevalidateRange<TEntry> | false
-  dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
-  dynamicParams?: boolean
-  fetchCache?: 'auto' | 'force-no-store' | 'only-no-store' | 'default-no-store' | 'default-cache' | 'only-cache' | 'force-cache'
-  preferredRegion?: 'auto' | 'global' | 'home' | string | string[]
-  runtime?: 'nodejs' | 'experimental-edge' | 'edge'
-  maxDuration?: number
-  
-  metadata?: any
-  generateMetadata?: Function
-  viewport?: any
-  generateViewport?: Function
-  experimental_ppr?: boolean
-  
-}, TEntry, ''>>()
-
-
-// Check the prop type of the entry function
-checkFields<Diff<PageProps, FirstArg<TEntry['default']>, 'default'>>()
-
-// Check the arguments and return type of the generateMetadata function
-if ('generateMetadata' in entry) {
-  checkFields<Diff<PageProps, FirstArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
-  checkFields<Diff<ResolvingMetadata, SecondArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
+export interface OrderItem {
+  id: string;
+  quantity: number;
+  price: number;
+  status: OrderItemStatus | null;
+  created_at: string;
+  order: {
+    id: string;
+    track_code: string | null;
+    table_id: string | null;
+    table_number: string | null;
+    restaurant: { id: string; name: string; user_id: string };
+  };
+  menu_item: { id: string; name: string };
 }
 
-// Check the arguments and return type of the generateViewport function
-if ('generateViewport' in entry) {
-  checkFields<Diff<PageProps, FirstArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
-  checkFields<Diff<ResolvingViewport, SecondArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
+const LiveOrders = () => {
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const [liveOrders, setLiveOrders] = useState<OrderItem[]>([]);
+  const [restaurantIds, setRestaurantIds] = useState<string[]>([]);
+  const [activeStatus, setActiveStatus] = useState<OrderItemStatus | 'All'>('All');
+  const [search, setSearch] = useState('');
+
+  // ===== helpers =====
+  const dbToUiStatus = (db: string | null): OrderItemStatus | null => {
+    switch (db) {
+      case 'pending': return 'Pending';
+      case 'confirmed': return 'Confirmed';
+      case 'preparing': return 'Preparing';
+      case 'ready': return 'Ready';
+      case 'cancelled': return 'Cancelled';
+      default: return null;
+    }
+  };
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const getTotalPrice = (orders: OrderItem[] | null) =>
+    (orders ?? []).reduce((sum, o) => sum + o.price * o.quantity, 0);
+
+  // ===== fetch all orders for restaurants owned by the logged-in user =====
+  const fetchLiveOrders = async () => {
+    setRefreshing(true);
+    try {
+      // 1) current user
+      const { data: { user }, error: authErr } = await supabase.auth.getUser();
+      if (authErr) throw authErr;
+      if (!user) throw new Error('Not authenticated');
+
+      // 2) restaurants owned by this user
+      const { data: restaurants, error: restErr } = await supabase
+        .from('restaurants')
+        .select('id, restaurant_name, user_id')
+        .eq('user_id', user.id);
+
+      if (restErr) throw restErr;
+
+      const ids = (restaurants ?? []).map(r => r.id);
+      setRestaurantIds(ids);
+
+      if (ids.length === 0) {
+        setLiveOrders([]);
+        setErrorMsg('âš ï¸ No restaurants found for your account.');
+        return;
+      }
+
+      // 3) orders that belong only to those restaurants
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          id, track_code, status, created_at,
+          table:tables ( id, table_number ),
+          restaurant:restaurants ( id, restaurant_name, user_id ),
+          order_items (
+            id, quantity, price,
+            menu_item:menu_items ( id, name )
+          )
+        `)
+        .in('restaurant_id', ids)
+        .in('status', ['pending','confirmed','preparing','ready','cancelled'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // 4) normalize â†’ one card per order item
+      const normalized: OrderItem[] = (data || []).flatMap((order: any) =>
+        (order.order_items || []).map((item: any) => ({
+          id: item.id,
+          quantity: item.quantity,
+          price: item.price,
+          status: dbToUiStatus(order.status),
+          created_at: order.created_at,
+          order: {
+            id: order.id,
+            track_code: order.track_code ?? null,
+            table_id: order.table?.id ? String(order.table.id) : null,
+            table_number: order.table?.table_number ?? null,
+            restaurant: {
+              id: order.restaurant?.id ?? '',
+              name: order.restaurant?.restaurant_name ?? '',
+              user_id: order.restaurant?.user_id ?? '',
+            },
+          },
+          menu_item: {
+            id: item.menu_item?.id ?? '',
+            name: item.menu_item?.name ?? '',
+          },
+        }))
+      );
+
+      setLiveOrders(normalized);
+      setErrorMsg(null);
+    } catch (e: any) {
+      console.error('[LiveOrders.fetch]', e);
+      setErrorMsg(e?.message || 'Failed to load orders');
+      setLiveOrders([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // initial load
+  useEffect(() => { fetchLiveOrders(); }, []);
+
+  // realtime: refresh when any order changes for the ownerâ€™s restaurants
+  useEffect(() => {
+    if (!restaurantIds.length) return;
+
+    const channels = restaurantIds.map((rid) =>
+      supabase
+        .channel(`orders-${rid}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${rid}` },
+          () => fetchLiveOrders()
+        )
+        .subscribe()
+    );
+
+    return () => {
+      channels.forEach((ch) => supabase.removeChannel(ch));
+    };
+  }, [restaurantIds]);
+
+  // status + search filter
+  const filteredOrders = useMemo(() => {
+    let orders = [...liveOrders];
+
+    if (activeStatus !== 'All') {
+      orders = orders.filter((o) => o.status === activeStatus);
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      orders = orders.filter((o) =>
+        (o.order.track_code || '').toLowerCase().includes(q) ||
+        (o.order.table_number || '').toLowerCase().includes(q) ||
+        (o.menu_item.name || '').toLowerCase().includes(q) ||
+        (o.order.restaurant.name || '').toLowerCase().includes(q) ||
+        (o.status || '').toLowerCase().includes(q)
+      );
+    }
+    return orders;
+  }, [liveOrders, activeStatus, search]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Header + Search */}
+      <div className="mb-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">Live Orders</h2>
+          {errorMsg && (
+            <div className="mt-2 flex items-center gap-2 bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded-md text-sm">
+              <AlertTriangle className="h-4 w-4" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+        </div>
+        <Input
+          placeholder="Search by track code, table, item, or status..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-md"
+        />
+      </div>
+
+      <LiveOrdersComponent
+        liveOrders={liveOrders}
+        filteredOrders={filteredOrders}
+        refreshing={refreshing}
+        fetchLiveOrders={fetchLiveOrders}
+        activeStatus={activeStatus}
+        setActiveStatus={setActiveStatus}
+        formatDate={formatDate}
+        getTotalPrice={(orders) => getTotalPrice(orders)}
+        errorMsg={errorMsg}
+      />
+    </div>
+  );
+};
+
+export default LiveOrders;
+
+----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\orders\OrderHistory.tsx -----
+
+import React from 'react'
+
+const OrderHistory = () => {
+  return (
+    <div>OrderHistory</div>
+  )
 }
 
-// Check the arguments and return type of the generateStaticParams function
-if ('generateStaticParams' in entry) {
-  checkFields<Diff<{ params: SegmentParams }, FirstArg<MaybeField<TEntry, 'generateStaticParams'>>, 'generateStaticParams'>>()
-  checkFields<Diff<{ __tag__: 'generateStaticParams', __return_type__: any[] | Promise<any[]> }, { __tag__: 'generateStaticParams', __return_type__: ReturnType<MaybeField<TEntry, 'generateStaticParams'>> }>>()
+export default OrderHistory
+
+----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\orders\page.tsx -----
+
+// src/app/dashboard/orders/page.tsx
+import React from 'react';
+import LiveOrders from './LiveOrders';
+import OrderHistory from './OrderHistory';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+
+export default function Orders() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+      {/* Page header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
+        <p className="text-sm text-muted-foreground">
+          Monitor live orders and browse historical activity.
+        </p>
+      </div>
+
+      <Separator className="mb-6" />
+
+      {/* Content grid */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        {/* Live Orders */}
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Live Orders</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {/* Make inner content scroll on small screens while keeping the card tidy */}
+            <div className="max-h-[70vh] overflow-auto px-4 pb-4">
+              <LiveOrders />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Order History */}
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Order History</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="max-h-[70vh] overflow-auto px-4 pb-4">
+              <OrderHistory />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
 }
-
-export interface PageProps {
-  params?: Promise<SegmentParams>
-  searchParams?: Promise<any>
-}
-export interface LayoutProps {
-  children?: React.ReactNode
-
-  params?: Promise<SegmentParams>
-}
-
-// =============
-// Utility types
-type RevalidateRange<T> = T extends { revalidate: any } ? NonNegative<T['revalidate']> : never
-
-// If T is unknown or any, it will be an empty {} type. Otherwise, it will be the same as Omit<T, keyof Base>.
-type OmitWithTag<T, K extends keyof any, _M> = Omit<T, K>
-type Diff<Base, T extends Base, Message extends string = ''> = 0 extends (1 & T) ? {} : OmitWithTag<T, keyof Base, Message>
-
-type FirstArg<T extends Function> = T extends (...args: [infer T, any]) => any ? unknown extends T ? any : T : never
-type SecondArg<T extends Function> = T extends (...args: [any, infer T]) => any ? unknown extends T ? any : T : never
-type MaybeField<T, K extends string> = T extends { [k in K]: infer G } ? G extends Function ? G : never : never
-
-
-
-function checkFields<_ extends { [k in keyof any]: never }>() {}
-
-// https://github.com/sindresorhus/type-fest
-type Numeric = number | bigint
-type Zero = 0 | 0n
-type Negative<T extends Numeric> = T extends Zero ? never : `${T}` extends `-${string}` ? T : never
-type NonNegative<T extends Numeric> = T extends Zero ? T : Negative<T> extends never ? T : '__invalid_negative_number__'
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\profile\page.tsx -----
 
@@ -2348,6 +2696,134 @@ export default function AddTablePage() {
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\tables\[id]\edit\page.tsx -----
 
+// src/app/dashboard/tables/[id]/edit/page.tsx
+'use client';
+
+import { useState, useEffect, FormEvent } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
+import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+interface Table {
+    id: string;
+    table_number: string;
+}
+
+export default function EditTablePage() {
+    const router = useRouter();
+    const params = useParams();
+    const tableId = params.id as string;
+
+    const [table, setTable] = useState<Table | null>(null);
+    const [tableNumber, setTableNumber] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (!tableId) return;
+
+        const fetchTable = async () => {
+            setLoading(true);
+            const { data, error } = await supabase
+                .from('tables')
+                .select('id, table_number')
+                .eq('id', tableId)
+                .single();
+
+            if (error || !data) {
+                toast.error('Could not find the specified table.');
+                router.push('/dashboard/tables');
+            } else {
+                setTable(data as Table);
+                setTableNumber(data.table_number);
+            }
+            setLoading(false);
+        };
+
+        fetchTable();
+    }, [tableId, router]);
+
+    const handleSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!tableNumber.trim()) {
+            toast.error("Table name cannot be empty.");
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            const { error } = await supabase
+                .from('tables')
+                .update({ table_number: tableNumber })
+                .eq('id', tableId);
+
+            if (error) throw error;
+
+            toast.success('Table updated successfully!');
+            router.push('/dashboard/tables');
+            router.refresh(); // Tell Next.js to refresh server components
+        } catch (error: any) {
+            toast.error(`Update failed: ${error.message}`);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-full p-8">
+                <Loader2 className="h-12 w-12 animate-spin text-indigo-500" />
+            </div>
+        );
+    }
+    
+    if (!table) return null;
+
+    return (
+        <div className="p-4 sm:p-8">
+            <div className="max-w-lg mx-auto">
+                <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
+                     <h1 className="text-3xl font-bold text-gray-800">Edit Table</h1>
+                     <p className="text-gray-600 mt-1">Update the name or number for this table.</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-md space-y-6">
+                    <div>
+                        <label htmlFor="tableIdentifier" className="block text-lg font-semibold text-gray-700 mb-2">
+                            Table Name or Number
+                        </label>
+                        <input
+                            id="tableIdentifier"
+                            type="text"
+                            value={tableNumber}
+                            onChange={(e) => setTableNumber(e.target.value)}
+                            className="w-full text-lg p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            placeholder="e.g., Patio Table 4 or 12"
+                            required
+                        />
+                    </div>
+                    <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
+                        <button
+                            type="button"
+                            onClick={() => router.back()}
+                            className="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-100"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold px-6 py-3 rounded-xl disabled:opacity-50 flex items-center justify-center"
+                        >
+                            {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                            {isSubmitting ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\tables\page.tsx -----
 
@@ -2427,14 +2903,14 @@ export default function TablesPage() {
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\test\page.tsx -----
 
+// src/app/dashboard/test/page.tsx
+
 import { createServerClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 
 export default async function TestPage() {
-  // Use the cookies() from next/headers
   const cookieStore = cookies();
-  // FIXED: The createServerClient function must be awaited
-  const supabase = await createServerClient();
+  const supabase = createServerClient(); // FIXED: Removed await
 
   const {
     data: { user },
@@ -2458,7 +2934,7 @@ export default async function TestPage() {
       <div className="bg-gray-100 p-4 rounded-lg space-y-2">
         <h2 className="font-semibold text-lg">User Status:</h2>
         {user ? (
-          <pre className="bg-green-100 text-green-800 p-2 rounded text-sm">
+          <pre className="bg-green-100 text-green-800 p-2 rounded text-sm overflow-x-auto">
             {JSON.stringify(user, null, 2)}
           </pre>
         ) : (
@@ -2468,11 +2944,11 @@ export default async function TestPage() {
       <div className="bg-gray-100 p-4 rounded-lg space-y-2 mt-4">
         <h2 className="font-semibold text-lg">Tables Data Fetch:</h2>
         {tablesError ? (
-          <pre className="bg-red-100 text-red-800 p-2 rounded text-sm">
+          <pre className="bg-red-100 text-red-800 p-2 rounded text-sm overflow-x-auto">
             Error fetching tables: {tablesError.message}
           </pre>
         ) : (
-          <pre className="bg-blue-100 text-blue-800 p-2 rounded text-sm">
+          <pre className="bg-blue-100 text-blue-800 p-2 rounded text-sm overflow-x-auto">
             {tablesData ? JSON.stringify(tablesData, null, 2) : 'No data or no user to fetch for.'}
           </pre>
         )}
@@ -2480,7 +2956,6 @@ export default async function TestPage() {
     </div>
   );
 }
-
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\app\dashboard\layout.tsx -----
 
@@ -5249,134 +5724,229 @@ export default function LiveOrderNotification() {
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\components\LiveOrdersComponent.tsx -----
 
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Clock, ChefHat, CheckCircle, XCircle } from "lucide-react";
-import Link from "next/link";
-import { Order, OrderStatus } from "@/app/dashboard/orders/OrderTypes";
-import { setOrderStatus } from "@/lib/api/orders";
-import { toast } from "sonner";
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RefreshCw, Clock, ChefHat, CheckCircle, XCircle } from 'lucide-react';
+import Link from 'next/link';
+import { OrderItem, OrderItemStatus } from '@/app/dashboard/orders/LiveOrders';
+import { setOrderStatus } from '@/lib/api/orders';
 
-interface Props {
-  fetchLiveOrders: () => void;
-  filteredOrders: Order[];
+interface LiveOrdersComponentProps {
+  fetchLiveOrders: () => Promise<void>;
+  refreshing: boolean;
+  liveOrders: OrderItem[] | null;
+  filteredOrders: OrderItem[] | null;
+  activeStatus: OrderItemStatus | 'All';
+  setActiveStatus: (status: OrderItemStatus | 'All') => void;
+  formatDate: (dateString: string) => string;
+  getTotalPrice: (orders: OrderItem[] | null) => number;
+  errorMsg?: string | null;
 }
 
 const ETA_PRESETS = [10, 15, 20, 25, 30];
-const STATUS_OPTIONS: (OrderStatus|"All")[] = ["All", "pending", "confirmed", "preparing", "ready"];
 
-
-const LiveOrdersComponent: React.FC<Props> = ({ fetchLiveOrders, filteredOrders }) => {
+const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
+  fetchLiveOrders,
+  refreshing,
+  liveOrders,
+  filteredOrders,
+  activeStatus,
+  setActiveStatus,
+  formatDate,
+  getTotalPrice,
+  errorMsg,
+}) => {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [activeStatus, setActiveStatus] = useState<OrderStatus | "All">("All");
+  const [etaChoice, setEtaChoice] = useState<Record<string, number>>({});
 
-  const handleUpdate = async (orderId: string, status: OrderStatus, eta?: number) => {
-    setUpdatingId(orderId);
+  const handleUpdate = async (orderId: string, status: OrderItemStatus, eta?: number | null) => {
     try {
-      await setOrderStatus(orderId, status, eta);
-      toast.success(`Order #${orderId.slice(-6)} updated to ${status}.`);
-      fetchLiveOrders(); // Re-fetch data to update the view
+      setUpdatingId(orderId);
+      await setOrderStatus(orderId, status as any, eta ?? null);
+      await fetchLiveOrders();
     } catch (e: any) {
-      toast.error(e?.message || "Failed to update status");
+      console.error('[update status]', e);
+      alert(e?.message || 'Failed to update status');
     } finally {
       setUpdatingId(null);
     }
   };
 
-  const getStatusIcon = (status: OrderStatus) => {
+  const getStatusIcon = (status: OrderItemStatus | null) => {
     switch (status) {
-      case "pending": return <Clock className="h-4 w-4 text-orange-500" />;
-      case "confirmed": return <CheckCircle className="h-4 w-4 text-blue-500" />;
-      case "preparing": return <ChefHat className="h-4 w-4 text-yellow-500" />;
-      case "ready": return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "cancelled": return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'Pending': return <Clock className="h-4 w-4" />;
+      case 'Confirmed': return <CheckCircle className="h-4 w-4" />;
+      case 'Preparing': return <ChefHat className="h-4 w-4" />;
+      case 'Ready': return <CheckCircle className="h-4 w-4" />;
+      case 'Cancelled': return <XCircle className="h-4 w-4" />;
       default: return <Clock className="h-4 w-4" />;
     }
   };
 
-  const ordersToDisplay = activeStatus === 'All'
-    ? filteredOrders
-    : filteredOrders.filter(o => o.status === activeStatus);
+  const getStatusVariant = (status: OrderItemStatus | null) => {
+    switch (status) {
+      case 'Cancelled': return 'destructive';
+      case 'Confirmed':
+      case 'Preparing':
+      case 'Ready': return 'default';
+      case 'Pending':
+      default: return 'secondary';
+    }
+  };
 
   return (
-    <div className="space-y-4">
-      <Tabs value={activeStatus} onValueChange={(v) => setActiveStatus(v as OrderStatus | "All")}>
-        <TabsList className="grid w-full grid-cols-5">
-          {STATUS_OPTIONS.map(s => (
-            <TabsTrigger key={s} value={s} className="capitalize">{s}</TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
-      <div>
-        {ordersToDisplay.length > 0 ? (
-          <div className="space-y-4">
-            {ordersToDisplay.map((order) => {
-              const isUpdating = updatingId === order.id;
-              return (
-                <Card key={order.id} className="shadow-md">
-                  <CardHeader>
-                    <div className="flex justify-between items-center">
-                      <CardTitle className="text-lg">
-                        Table {order.tables?.table_number || 'N/A'} - Order #{order.id.slice(-6)}
-                      </CardTitle>
-                      <Badge variant="outline" className="capitalize flex items-center gap-2">
-                        {getStatusIcon(order.status)} {order.status}
-                      </Badge>
-                    </div>
-                    <CardDescription>
-                      <Link href={`/customer-end-pages/${order.restaurants?.restaurant_name.toLowerCase().replace(/\s+/g, '-')}/orders/${order.track_code}`} target="_blank" className="text-blue-600 hover:underline text-xs font-mono">
-                        Track Code: {order.track_code}
-                      </Link>
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="divide-y">
-                      {order.order_items.map(item => (
-                        <li key={item.id} className="flex justify-between py-2 text-sm">
-                          <span>{item.quantity}x {item.menu_items?.name || 'Unknown Item'}</span>
-                          <span className="font-medium">â‚¹{(item.price * item.quantity).toFixed(2)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="border-t pt-3 mt-3 flex justify-end font-bold">
-                      Total: â‚¹{order.total_amount.toFixed(2)}
-                    </div>
-                  </CardContent>
-                  <div className="p-4 border-t bg-gray-50 flex flex-wrap items-center gap-2">
-                     {/* Action Buttons based on current status */}
-                     {order.status === 'pending' && (
-                        <Button size="sm" disabled={isUpdating} onClick={() => handleUpdate(order.id, "confirmed")}>
-                           Confirm Order
-                        </Button>
-                     )}
-                     {order.status === 'confirmed' && (
-                        <Button size="sm" disabled={isUpdating} onClick={() => handleUpdate(order.id, "preparing", 15)}>
-                           Start Preparing
-                        </Button>
-                     )}
-                      {order.status === 'preparing' && (
-                        <Button size="sm" variant="secondary" disabled={isUpdating} onClick={() => handleUpdate(order.id, "ready")}>
-                           Mark as Ready
-                        </Button>
-                     )}
-                      <Button size="sm" variant="destructive" disabled={isUpdating || order.status === 'ready' || order.status === 'complete'} onClick={() => handleUpdate(order.id, "cancelled")}>
-                        Cancel
-                      </Button>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-center text-gray-500 py-12">No live orders with status "{activeStatus}".</p>
-        )}
+    <div className="container mx-auto px-4 py-6">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h1 className="text-2xl font-bold">Live Orders</h1>
+          <p className="text-muted-foreground">Manage active orders in real-time</p>
+        </div>
+        <Button onClick={fetchLiveOrders} disabled={refreshing} variant="outline" className="flex items-center gap-2">
+          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
+
+      {errorMsg && (
+        <div className="mb-4 rounded border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {errorMsg}
+        </div>
+      )}
+
+      {/* Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card><CardHeader><CardTitle>Total Orders</CardTitle></CardHeader><CardContent>{liveOrders?.length || 0}</CardContent></Card>
+        <Card><CardHeader><CardTitle>Pending</CardTitle></CardHeader><CardContent>{liveOrders?.filter(o=>o.status==='Pending').length || 0}</CardContent></Card>
+        <Card><CardHeader><CardTitle>Total Value</CardTitle></CardHeader><CardContent>${getTotalPrice(liveOrders).toFixed(2)}</CardContent></Card>
+      </div>
+
+      {/* Tabs */}
+      <Tabs value={activeStatus} onValueChange={(v)=>setActiveStatus(v as OrderItemStatus|'All')}>
+        <TabsList className="mb-4 grid grid-cols-5">
+          <TabsTrigger value="All">All</TabsTrigger>
+          <TabsTrigger value="Pending">Pending</TabsTrigger>
+          <TabsTrigger value="Confirmed">Confirmed</TabsTrigger>
+          <TabsTrigger value="Preparing">Preparing</TabsTrigger>
+          <TabsTrigger value="Ready">Ready</TabsTrigger>
+        </TabsList>
+
+        <div>
+          {filteredOrders && filteredOrders.length > 0 ? (
+            <div className="space-y-4">
+              {filteredOrders.map((order) => {
+                const isUpdating = updatingId === order.order.id;
+                const eta = etaChoice[order.order.id] ?? 15;
+                return (
+                  <Card key={order.id}>
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          {/* âœ… Show both Internal Short ID + Tracking Code */}
+                          <CardTitle>
+                            #{order.order.id.slice(-6)} â€¢ 
+                            <Link
+                              href={`/customer-end-pages/${order.order.restaurant.name.toLowerCase().replace(/\s+/g, '-')}/orders/${order.order.track_code}`}
+                              className="text-blue-600 hover:underline ml-1"
+                              target="_blank"
+                            >
+                              Code: {order.order.track_code}
+                            </Link>
+                            {order.order.table_number && ` â€¢ Table ${order.order.table_number}`}
+                          </CardTitle>
+                          <CardDescription>
+                            {order.order.restaurant.name} â€¢ {formatDate(order.created_at)}
+                          </CardDescription>
+                        </div>
+                        <Badge variant={getStatusVariant(order.status)} className="flex items-center gap-1">
+                          {getStatusIcon(order.status)} {order.status}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-semibold">{order.menu_item?.name}</h3>
+                          <p className="text-sm text-muted-foreground">Qty: {order.quantity}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">${(order.price * order.quantity).toFixed(2)}</p>
+                          <p className="text-xs text-muted-foreground">${order.price.toFixed(2)} each</p>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          disabled={isUpdating || order.status !== 'Pending'}
+                          onClick={() => handleUpdate(order.order.id, 'Confirmed')}
+                        >
+                          {isUpdating ? 'Updating...' : 'Confirm'}
+                        </Button>
+
+                        <div className="flex items-center gap-2">
+                          <select
+                            className="border rounded px-2 py-1 text-sm"
+                            value={eta}
+                            onChange={(e) => setEtaChoice((prev) => ({ ...prev, [order.order.id]: Number(e.target.value) }))}
+                            disabled={isUpdating}
+                          >
+                            {ETA_PRESETS.map((m) => (
+                              <option key={m} value={m}>{m} min</option>
+                            ))}
+                          </select>
+                          <Button
+                            size="sm"
+                            disabled={isUpdating || (order.status !== 'Pending' && order.status !== 'Confirmed')}
+                            onClick={() => handleUpdate(order.order.id, 'Preparing', eta)}
+                          >
+                            {isUpdating ? 'Updating...' : `Preparing (${eta}m)`}
+                          </Button>
+                        </div>
+
+                        <Button
+                          size="sm"
+                          disabled={isUpdating || order.status !== 'Preparing'}
+                          onClick={() => handleUpdate(order.order.id, 'Ready')}
+                        >
+                          {isUpdating ? 'Updating...' : 'Ready'}
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={isUpdating || order.status === 'Ready'}
+                          onClick={() => handleUpdate(order.order.id, 'Cancelled')}
+                        >
+                          {isUpdating ? 'Updating...' : 'Cancel'}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="bg-muted rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <Clock className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-medium mb-2">No orders found</h3>
+              <p className="text-muted-foreground">
+                {activeStatus === 'All'
+                  ? "You don't have any active orders at the moment."
+                  : `You don't have any orders with status "${activeStatus}".`}
+              </p>
+            </div>
+          )}
+        </div>
+      </Tabs>
     </div>
   );
 };
@@ -7541,13 +8111,15 @@ export const supabase = createBrowserClient(
 
 ----- D:\01--PROJECTS--APPROTECH\Quick_Bite_Qr\src\lib\supabase\server.ts -----
 
+// src/lib/supabase/server.ts
+
 import { createServerClient as createSupabaseServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 // This is the definitive, correct, and type-safe version for Server Components and API Routes.
-export async function createServerClient() {
-  // FIXED: The cookies() function MUST be awaited.
-  const cookieStore = await cookies()
+// FIXED: The function is now synchronous, and cookies() is called directly without await.
+export function createServerClient() {
+  const cookieStore = cookies()
 
   return createSupabaseServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
