@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const { orderId, title, message, url } = await req.json(); // Changed 'body' to 'message' for clarity
     if (!orderId) return NextResponse.json({ error: 'orderId required' }, { status: 400 });
 
-    const supabase = createServerClient(); // FIXED: Removed await
+    const supabase = await createServerClient(); // FIXED: Removed await
     const { data: subs, error } = await supabase
       .from('web_push_subscriptions')
       .select('*')

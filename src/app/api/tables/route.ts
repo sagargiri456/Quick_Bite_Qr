@@ -5,19 +5,19 @@ import { createServerClient } from "@/lib/supabase/server";
 
 // GET all tables for the current restaurant
 export async function GET() {
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
 
   // 1. Get the logged in user
   const {
     data: { user },
-  } = await (await supabase).auth.getUser();
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // 2. Find the restaurant for this user
-  const { data: restaurant, error: restaurantError } = await (await supabase)
+  const { data: restaurant, error: restaurantError } = await supabase
     .from("restaurants")
     .select("id")
     .eq("user_id", user.id)
@@ -31,7 +31,7 @@ export async function GET() {
   }
 
   // 3. Get tables for that restaurant
-  const { data, error } = await (await supabase)
+  const { data, error } = await supabase
     .from("tables")
     .select("id, table_number, qr_code_url, created_at")
     .eq("restaurant_id", restaurant.id)
@@ -46,19 +46,19 @@ export async function GET() {
 
 // POST create a new table
 export async function POST(req: Request) {
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
   const body = await req.json();
 
   const {
     data: { user },
-  } = await (await supabase).auth.getUser();
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // Find restaurant for this user
-  const { data: restaurant, error: restaurantError } = await (await supabase)
+  const { data: restaurant, error: restaurantError } = await supabase
     .from("restaurants")
     .select("id")
     .eq("user_id", user.id)
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { data, error } = await (await supabase)
+  const { data, error } = await supabase
     .from("tables")
     .insert({
       restaurant_id: restaurant.id,

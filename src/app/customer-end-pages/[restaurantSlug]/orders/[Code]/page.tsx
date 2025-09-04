@@ -13,7 +13,7 @@ type PageProps = {
 
 export default async function OrderTrackPage({ params }: PageProps) {
   const { restaurantSlug, code } = params;
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
 
   // Step 1: Fetch order by tracking code
   const { data: order, error: orderError } = await supabase

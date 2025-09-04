@@ -5,7 +5,7 @@ import { createServerClient } from "@/lib/supabase/server";
 
 // GET restaurant profile for current user
 export async function GET() {
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
 
   const {
     data: { user },
@@ -30,7 +30,7 @@ export async function GET() {
 
 // PUT update restaurant profile
 export async function PUT(req: Request) {
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
   const body = await req.json();
 
   const {

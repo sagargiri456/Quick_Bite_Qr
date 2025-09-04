@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
   const { status, note, etaMinutes } = await req.json();
   const orderId = params.id;
 

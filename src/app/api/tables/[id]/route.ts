@@ -28,9 +28,9 @@ async function verifyOwnership(supabase: any, tableId: string): Promise<boolean>
 
 // GET single table details
 export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
 
-  const { data, error } = await (await supabase)
+  const { data, error } = await supabase
     .from("tables")
     .select("*")
     .eq("id", params.id)
@@ -45,7 +45,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 
 // PUT update table info
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
 
   const isOwner = await verifyOwnership(supabase, params.id);
   if (!isOwner) {
@@ -55,7 +55,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   const body = await req.json();
   const { table_number } = body;
 
-  const { data, error } = await (await supabase)
+  const { data, error } = await supabase
     .from("tables")
     .update({ table_number })
     .eq("id", params.id)
@@ -71,14 +71,14 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 // DELETE single table
 export async function DELETE(_: Request, { params }: { params: { id: string } }) {
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
 
   const isOwner = await verifyOwnership(supabase, params.id);
   if (!isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  const { error } = await (await supabase).from("tables").delete().eq("id", params.id);
+  const { error } = await supabase.from("tables").delete().eq("id", params.id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
