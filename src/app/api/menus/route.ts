@@ -5,7 +5,7 @@ import { createServerClient } from "@/lib/supabase/server";
 
 // GET all menu items for the logged-in restaurant
 export async function GET() {
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await await createServerClient(); // FIXED: Removed await
 
   const {
     data: { user },

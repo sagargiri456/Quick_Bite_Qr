@@ -17,7 +17,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Subscription is missing keys' }, { status: 400 });
     }
 
-    const supabase = createServerClient(); // FIXED: Removed await
+    const supabase = await createServerClient(); // FIXED: Removed await
     // Upsert by endpoint to avoid duplicates and update order_id if needed
     const { error } = await supabase
       .from('web_push_subscriptions')

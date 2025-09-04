@@ -13,7 +13,7 @@ type PageProps = {
 export default async function OrderTrackPage({ params }: PageProps) {
   // FIX: Destructuring is now simple and direct
   const { restaurantSlug, code } = params;
-  const supabase = await createServerClient();
+  const supabase = await await createServerClient();
 
   // Step 1: Fetch order by tracking code
   const { data: order, error: orderError } = await supabase

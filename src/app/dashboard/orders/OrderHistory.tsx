@@ -35,7 +35,7 @@ const getStatusVariant = (status: string) => {
 
 // This is an async Server Component
 export default async function OrderHistoryPage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   // 1. Get the authenticated user (server-side)
   const { data: { user } } = await (await supabase).auth.getUser();

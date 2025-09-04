@@ -5,7 +5,7 @@ import { createServerClient } from "@/lib/supabase/server";
 
 // GET all orders for logged-in restaurant
 export async function GET() {
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
 
   const {
     data: { user },
@@ -41,7 +41,7 @@ export async function GET() {
 
 // POST create a new order (public endpoint for customers)
 export async function POST(req: Request) {
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
   const body = await req.json();
   
   const { restaurantId, tableId, totalAmount, cartItems } = body;

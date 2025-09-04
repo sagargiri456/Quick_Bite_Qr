@@ -5,7 +5,7 @@ import { createServerClient } from "@/lib/supabase/server";
 
 // GET all tables for the current restaurant
 export async function GET() {
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
 
   // 1. Get the logged in user
   const {
@@ -46,7 +46,7 @@ export async function GET() {
 
 // POST create a new table
 export async function POST(req: Request) {
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
   const body = await req.json();
 
   const {

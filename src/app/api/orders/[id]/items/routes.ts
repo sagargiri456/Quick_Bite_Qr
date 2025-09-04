@@ -7,7 +7,7 @@ export async function GET(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
 
   // Authorization check to ensure the order belongs to the user or is public
   const { data: { user } } = await supabase.auth.getUser();

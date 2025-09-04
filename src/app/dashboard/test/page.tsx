@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 
 export default async function TestPage() {
   const cookieStore = cookies();
-  const supabase = createServerClient(); // FIXED: Removed await
+  const supabase = await createServerClient(); // FIXED: Removed await
 
   const {
     data: { user },
