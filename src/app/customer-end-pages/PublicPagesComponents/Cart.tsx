@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useCartStore } from '@/app/customer-end-pages/store/cartStore';
 import CartItem from './CartItem';
 import { X, ShoppingCart, Loader2, CreditCard, Landmark } from 'lucide-react';
@@ -14,186 +14,169 @@ interface CartProps {
   restaurantSlug: string;
 }
 
+type LoadingState = null | 'online' | 'table';
+
 const formatPrice = (price: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(price);
 
 export default function Cart({ isOpen, onClose, restaurantId, tableNumber, restaurantSlug }: CartProps) {
   const router = useRouter();
   const { items, totalPrice, clearCart } = useCartStore();
-  const [isLoading, setIsLoading] = useState<null | 'online' | 'table'>(null);
+  const [isLoading, setIsLoading] = useState<LoadingState>(null);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  // Refs to track component state and prevent memory leaks
+  const isMountedRef = useRef(true);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Reset loading state when user returns from UPI app
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isLoading === 'online') {
+        // User returned without completing payment - reset loading state
+        setIsLoading(null);
+        setErrorMessage('Payment was not completed. Please try again.');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isLoading]);
 
   const handleApiCall = async (url: string, body: object) => {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ error: 'An unexpected server error occurred.' }));
-      throw new Error(errorData.error || 'Server error');
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ 
+          error: `Server error: ${res.status} ${res.statusText}` 
+        }));
+        throw new Error(errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      }
+
+      return await res.json();
+    } catch (error) {
+      if (error instanceof TypeError) {
+        // Network error
+        throw new Error('Network error. Please check your internet connection and try again.');
+      }
+      throw error;
     }
-    return res.json();
   };
 
-  // const handlePayOnline = async () => {
-  //   if (items.length === 0) {
-  //     setErrorMessage('Your cart is empty.');
-  //     return;
-  //   }
-
-  //   setIsLoading('online');
-  //   setErrorMessage(null);
-
-  //   try {
-  //     // 1) create order
-  //     const createResp = await handleApiCall('/api/checkout', {
-  //       cartItems: items,
-  //       restaurantId,
-  //       tableNumber,
-  //       totalAmount: totalPrice(),
-  //     });
-
-  //     if (!createResp?.success || !createResp?.orderId) {
-  //       // sometimes older response returned trackCode — handle both
-  //       if (createResp?.trackCode) {
-  //         // fallback: redirect to checkout (old behaviour)
-  //         setOrderSuccess(true);
-  //         clearCart();
-  //         router.push(`/checkout/${createResp.trackCode}?slug=${restaurantSlug}`);
-  //         return;
-  //       }
-  //       throw new Error(createResp?.error || 'Failed to create order.');
-  //     }
-
-  //     const orderId = createResp.orderId;
-
-  //     // 2) request magic link
-  //     const linkRes = await fetch(`/api/orders/${orderId}/magic-link`, {
-  //       method: 'POST',
-  //       headers: { 'Content-Type': 'application/json' },
-  //     });
-
-  //     if (!linkRes.ok) {
-  //       const linkErr = await linkRes.json().catch(() => ({}));
-  //       // If magic link generation fails, try redirecting to the checkout page directly using trackCode if available
-  //       if (createResp.trackCode) {
-  //         setOrderSuccess(true);
-  //         clearCart();
-  //         router.push(`/checkout/${createResp.trackCode}?slug=${restaurantSlug}`);
-  //         return;
-  //       }
-  //       throw new Error(linkErr.error || 'Failed to generate magic link.');
-  //     }
-
-  //     const linkData = await linkRes.json();
-
-  //     if (!linkData?.magicUrl) {
-  //       // fallback to checkout page if trackCode present
-  //       if (createResp.trackCode) {
-  //         setOrderSuccess(true);
-  //         clearCart();
-  //         router.push(`/checkout/${createResp.trackCode}?slug=${restaurantSlug}`);
-  //         return;
-  //       }
-  //       throw new Error('Magic link not returned by server.');
-  //     }
-
-  //     // success — clear cart and redirect browser to magic link (full redirect so token is consumed server-side)
-  //     setOrderSuccess(true);
-  //     clearCart();
-
-  //     // Use full navigation (location.href) because magicUrl might point to an API route that redirects
-  //     window.location.href = linkData.magicUrl;
-  //   } catch (error: any) {
-  //     console.error('Pay online error:', error);
-  //     setErrorMessage(error?.message || 'An error occurred while processing payment.');
-  //   } finally {
-  //     setIsLoading(null);
-  //   }
-  // };
-const handlePayOnline = async () => {
-  if (items.length === 0) {
-    setErrorMessage('Your cart is empty.');
-    return;
-  }
-
-  setIsLoading('online');
-  setErrorMessage(null);
-
-  try {
-    // 1) create order (server will generate upiLink + QR)
-    const createResp = await handleApiCall('/api/checkout', {
-      cartItems: items,
-      restaurantId,
-      tableNumber,
-      totalAmount: totalPrice(),
-    });
-
-    // normalize response
-    const orderId = createResp?.orderId;
-    const upiLink = createResp?.upiLink || createResp?.upi_link;
-    const trackCode = createResp?.trackCode || createResp?.track_code;
-
-    if (!orderId || !trackCode) {
-      // fallback if older response shape:
-      if (createResp?.trackCode) {
-        setOrderSuccess(true);
-        clearCart();
-        router.push(`/checkout/${createResp.trackCode}?slug=${restaurantSlug}`);
-        return;
-      }
-      throw new Error(createResp?.error || 'Failed to create order.');
+  const safeSetState = (setter: () => void) => {
+    if (isMountedRef.current) {
+      setter();
     }
+  };
 
-    // Clear cart early (customer is moving to UPI app)
-    setOrderSuccess(true);
-    clearCart();
+  const openUpiApp = async (upiLink: string, trackCode: string): Promise<boolean> => {
+    try {
+      const userAgent = navigator.userAgent || '';
+      const isAndroid = /Android/i.test(userAgent);
+      const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
 
-    // 2) If upiLink present, attempt to open it (mobile UPI app)
-    if (upiLink) {
-      try {
-        const userAgent = navigator.userAgent || '';
-        const isAndroid = /Android/i.test(userAgent);
-
-        if (isAndroid) {
-          // Try opening UPI scheme first
-          window.location.href = upiLink;
-
-          // Then attempt intent fallback after a short delay
-          // The intent uses the encoded upi link as data
-          const encoded = encodeURIComponent(upiLink);
-          const intentUrl = `intent:${encoded}#Intent;scheme=upi;end`;
-
-          setTimeout(() => {
-            // This may or may not be necessary depending on browser; it's a harmless fallback
-            window.location.href = intentUrl;
-          }, 500);
-        } else {
-          // iOS / other: open UPI scheme
-          window.location.href = upiLink;
-        }
-      } catch (err) {
-        console.error('Failed to open UPI link, falling back to checkout page', err);
-        router.push(`/checkout/${trackCode}?slug=${restaurantSlug}`);
+      if (isAndroid) {
+        // For Android, try UPI scheme first
+        window.location.href = upiLink;
+        
+        // Fallback to intent after delay
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            const encoded = encodeURIComponent(upiLink);
+            const intentUrl = `intent:${encoded}#Intent;scheme=upi;end`;
+            try {
+              window.location.href = intentUrl;
+            } catch (err) {
+              console.warn('Intent fallback failed:', err);
+            }
+          }
+        }, 1000);
+        
+        return true;
+      } else if (isIOS) {
+        // For iOS, try UPI scheme
+        window.location.href = upiLink;
+        return true;
+      } else {
+        // Desktop or other platforms - go to checkout page
+        return false;
       }
+    } catch (error) {
+      console.error('Failed to open UPI app:', error);
+      return false;
+    }
+  };
 
-      // Browser will navigate away. End here.
+  const handlePayOnline = async () => {
+    if (items.length === 0) {
+      setErrorMessage('Your cart is empty.');
       return;
     }
 
-    // 3) Fallback: if no upiLink, go to checkout page where we show QR & UPI button
-    router.push(`/checkout/${trackCode}?slug=${restaurantSlug}`);
-  } catch (error: any) {
-    console.error('Pay online error:', error);
-    setErrorMessage(error?.message || 'An error occurred while processing payment.');
-  } finally {
-    setIsLoading(null);
-  }
-};
+    setIsLoading('online');
+    setErrorMessage(null);
 
+    try {
+      // Create order
+      const createResp = await handleApiCall('/api/checkout', {
+        cartItems: items,
+        restaurantId,
+        tableNumber,
+        totalAmount: totalPrice(),
+      });
 
+      // Normalize response structure
+      const orderId = createResp?.orderId;
+      const upiLink = createResp?.upiLink || createResp?.upi_link;
+      const trackCode = createResp?.trackCode || createResp?.track_code;
+
+      if (!trackCode) {
+        throw new Error(createResp?.error || 'Failed to create order - missing track code.');
+      }
+
+      // Clear cart early since we're proceeding with payment
+      setOrderSuccess(true);
+      clearCart();
+
+      // Try to open UPI app if link is available
+      if (upiLink) {
+        const upiOpened = await openUpiApp(upiLink, trackCode);
+        if (upiOpened) {
+          // UPI app should open, user will return later
+          return;
+        }
+      }
+
+      // Fallback: redirect to checkout page
+      router.push(`/checkout/${trackCode}?slug=${restaurantSlug}`);
+
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'An unexpected error occurred while processing payment.';
+      
+      console.error('Pay online error:', error);
+      safeSetState(() => setErrorMessage(errorMessage));
+    } finally {
+      safeSetState(() => setIsLoading(null));
+    }
+  };
 
   const handlePayOnTable = async () => {
     if (items.length === 0) {
@@ -203,6 +186,7 @@ const handlePayOnline = async () => {
 
     setIsLoading('table');
     setErrorMessage(null);
+
     try {
       const data = await handleApiCall('/api/orders/postpaid', {
         cartItems: items,
@@ -210,30 +194,45 @@ const handlePayOnline = async () => {
         tableNumber,
         totalAmount: totalPrice(),
       });
-      if (data.success && data.trackCode) {
+
+      if (data?.success && data?.trackCode) {
         setOrderSuccess(true);
         clearCart();
         router.push(`/customer-end-pages/${restaurantSlug}/orders/${data.trackCode}`);
       } else {
-        throw new Error(data.error || 'Failed to place postpaid order.');
+        throw new Error(data?.error || 'Failed to place postpaid order.');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'An error occurred while placing your order.';
+      
       console.error('Pay on table error:', error);
-      setErrorMessage(error?.message || 'An error occurred while placing order.');
+      safeSetState(() => setErrorMessage(errorMessage));
     } finally {
-      setIsLoading(null);
+      safeSetState(() => setIsLoading(null));
     }
   };
   
   const handleClose = () => {
     onClose();
-    setTimeout(() => {
-      setOrderSuccess(false);
-      setErrorMessage(null);
+    
+    // Clear timeout if it exists
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    // Reset state after animation completes
+    timeoutRef.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        setOrderSuccess(false);
+        setErrorMessage(null);
+        setIsLoading(null);
+      }
     }, 300);
   };
 
-  const disabled = items.length === 0 || !!isLoading;
+  const disabled = items.length === 0 || !!isLoading || orderSuccess;
 
   return (
     <>
@@ -247,49 +246,86 @@ const handlePayOnline = async () => {
         <div className="flex flex-col h-full">
           <div className="flex justify-between items-center p-6 border-b">
             <h2 className="text-2xl font-bold text-gray-800">Your Cart</h2>
-            <button onClick={handleClose} className="p-2 rounded-full hover:bg-gray-100"><X size={24} /></button>
+            <button 
+              onClick={handleClose} 
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              disabled={isLoading === 'online'} // Prevent closing during UPI flow
+            >
+              <X size={24} />
+            </button>
           </div>
+          
           {orderSuccess ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-gray-700 p-6">
-              <h3 className="text-2xl font-bold text-green-600">Thank You!</h3>
-              <p className="mt-2">Redirecting...</p>
+              <div className="animate-pulse">
+                <ShoppingCart size={48} className="mx-auto mb-4 text-green-500" />
+              </div>
+              <h3 className="text-2xl font-bold text-green-600 mb-2">Thank You!</h3>
+              <p className="text-gray-600">Processing your order...</p>
+              <div className="mt-4">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              </div>
             </div>
           ) : (
             <>
               <div className="flex-grow p-6 overflow-y-auto">
                 {items.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
-                    <ShoppingCart size={48} className="mb-4" />
-                    <p className="font-semibold">Your cart is currently empty.</p>
+                    <ShoppingCart size={48} className="mb-4 text-gray-300" />
+                    <p className="font-semibold text-lg mb-2">Your cart is empty</p>
+                    <p className="text-sm text-gray-400">Add some delicious items to get started!</p>
                   </div>
                 ) : (
-                  <div className="divide-y">{items.map((item) => <CartItem key={item.id} item={item} />)}</div>
+                  <div className="divide-y divide-gray-200">
+                    {items.map((item) => (
+                      <CartItem key={item.id} item={item} />
+                    ))}
+                  </div>
                 )}
               </div>
+              
               {items.length > 0 && (
                 <div className="p-6 border-t bg-gray-50">
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-lg font-semibold text-gray-800">Subtotal</span>
-                    <span className="text-xl font-bold text-gray-900">{formatPrice(totalPrice())}</span>
+                    <span className="text-xl font-bold text-gray-900">
+                      {formatPrice(totalPrice())}
+                    </span>
                   </div>
+                  
                   {errorMessage && (
-                    <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm text-center">{errorMessage}</div>
+                    <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 rounded-lg text-sm">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 mr-2">⚠️</div>
+                        <div>{errorMessage}</div>
+                      </div>
+                    </div>
                   )}
+                  
                   <div className="space-y-3">
                     <button
                       onClick={handlePayOnline}
                       disabled={disabled}
-                      className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
+                      className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                     >
-                      {isLoading === 'online' ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CreditCard className="mr-2 h-5 w-5" />}
+                      {isLoading === 'online' ? (
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      ) : (
+                        <CreditCard className="mr-2 h-5 w-5" />
+                      )}
                       {isLoading === 'online' ? 'Processing...' : 'Pay Online (Prepaid)'}
                     </button>
+                    
                     <button
                       onClick={handlePayOnTable}
                       disabled={disabled}
-                      className="w-full bg-gray-700 text-white font-bold py-3 rounded-lg hover:bg-gray-800 disabled:opacity-50 flex items-center justify-center"
+                      className="w-full bg-gray-700 text-white font-bold py-3 rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                     >
-                      {isLoading === 'table' ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Landmark className="mr-2 h-5 w-5" />}
+                      {isLoading === 'table' ? (
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      ) : (
+                        <Landmark className="mr-2 h-5 w-5" />
+                      )}
                       {isLoading === 'table' ? 'Placing Order...' : 'Pay on Table'}
                     </button>
                   </div>

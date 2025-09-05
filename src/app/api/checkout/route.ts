@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     const upiLink = `upi://pay?pa=${restaurant.upi_id}&pn=${encodeURIComponent(restaurant.restaurant_name)}&am=${totalAmount}&cu=INR&tn=${encodeURIComponent(`Order #${order.track_code}`)}`;
 
     // Call Supabase Edge Function to generate QR (service key required)
-    const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE!);
     const { data: qrData, error: qrError } = await supabaseAdmin.functions.invoke('generate-payment-qr', { body: { upiLink } });
     if (qrError) {
       console.error("Edge function QR error:", qrError);

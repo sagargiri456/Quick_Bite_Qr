@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
-
 async function verifyOwnership(supabase: any, menuItemId: string): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return false;
@@ -11,7 +10,6 @@ async function verifyOwnership(supabase: any, menuItemId: string): Promise<boole
     .select("restaurant_id")
     .eq("id", menuItemId)
     .single();
-
   if (error || !menuItem) return false;
 
 

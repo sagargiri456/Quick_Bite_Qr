@@ -10,15 +10,25 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Restaurant, ValidationErrors, RestaurantProfileProps } from '@/lib/types/types';
-import {formatDate, getInitials}  from '@/lib/types/utils';
+import { formatDate, getInitials } from '@/lib/utils';
 
+// Form data interface for better type safety
+interface FormData {
+  owner_name: string;
+  restaurant_name: string;
+  email: string;
+  phone: string;
+  address: string;
+  upi_id: string;
+  logo_url: string;
+}
 
 const RestaurantProfile: React.FC<RestaurantProfileProps> = ({ restaurant, onUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     owner_name: restaurant.owner_name,
     restaurant_name: restaurant.restaurant_name,
     email: restaurant.email,
@@ -34,14 +44,17 @@ const RestaurantProfile: React.FC<RestaurantProfileProps> = ({ restaurant, onUpd
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
+
   const validatePhone = (phone: string): boolean => {
     const phoneRegex = /^\+?[1-9]\d{9,14}$/;
     return phoneRegex.test(phone);
   };
+
   const validateUpiId = (upiId: string): boolean => {
     const upiRegex = /^[\w.-]+@[\w.-]+$/;
     return upiRegex.test(upiId);
   };
+
   const validateUrl = (url: string): boolean => {
     if (!url) return true;
     try {
@@ -51,6 +64,7 @@ const RestaurantProfile: React.FC<RestaurantProfileProps> = ({ restaurant, onUpd
       return false;
     }
   };
+
   const validateForm = (): boolean => {
     const newErrors: ValidationErrors = {};
     if (formData.owner_name.length < 2) {
@@ -77,10 +91,12 @@ const RestaurantProfile: React.FC<RestaurantProfileProps> = ({ restaurant, onUpd
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 5000);
   };
+
   const handleEdit = () => {
     setIsEditing(true);
     setFormData({
@@ -95,6 +111,7 @@ const RestaurantProfile: React.FC<RestaurantProfileProps> = ({ restaurant, onUpd
     setErrors({});
     setNotification(null);
   };
+
   const handleCancel = () => {
     setIsEditing(false);
     setFormData({
@@ -109,13 +126,15 @@ const RestaurantProfile: React.FC<RestaurantProfileProps> = ({ restaurant, onUpd
     setErrors({});
     setNotification(null);
   };
-  const handleInputChange = (field: keyof typeof formData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+
+  const handleInputChange = (field: keyof FormData, value: string) => {
+    setFormData((prev: FormData) => ({ ...prev, [field]: value }));
 
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+      setErrors((prev: ValidationErrors) => ({ ...prev, [field]: undefined }));
     }
   };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -128,7 +147,7 @@ const RestaurantProfile: React.FC<RestaurantProfileProps> = ({ restaurant, onUpd
     setIsLoading(true);
     try {
       const qr_url = formData.upi_id !== restaurant.upi_id
-         ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${encodeURIComponent(formData.upi_id)}&pn=${encodeURIComponent(formData.restaurant_name)}`
+        ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${encodeURIComponent(formData.upi_id)}&pn=${encodeURIComponent(formData.restaurant_name)}`
         : restaurant.qr_url;
       await onUpdate({
         ...formData,
@@ -271,8 +290,8 @@ const RestaurantProfile: React.FC<RestaurantProfileProps> = ({ restaurant, onUpd
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Restaurant Address</label>
                       <Textarea
-                         placeholder="Enter complete restaurant address"
-                         className={`resize-none ${errors.address ? 'border-red-500' : ''}`}
+                        placeholder="Enter complete restaurant address"
+                        className={`resize-none ${errors.address ? 'border-red-500' : ''}`}
                         value={formData.address}
                         onChange={(e) => handleInputChange('address', e.target.value)}
                       />
@@ -317,9 +336,9 @@ const RestaurantProfile: React.FC<RestaurantProfileProps> = ({ restaurant, onUpd
                         Cancel
                       </Button>
                       <Button
-                         type="submit"
-                         disabled={isLoading}
-                         className="bg-orange-500 hover:bg-orange-600"
+                        type="submit"
+                        disabled={isLoading}
+                        className="bg-orange-500 hover:bg-orange-600"
                       >
                         {isLoading ? (
                           <>
@@ -358,7 +377,7 @@ const RestaurantProfile: React.FC<RestaurantProfileProps> = ({ restaurant, onUpd
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreference">
                         <Mail className="h-4 w-4" />
                         Email Address
                       </div>
@@ -403,9 +422,9 @@ const RestaurantProfile: React.FC<RestaurantProfileProps> = ({ restaurant, onUpd
               <CardContent className="text-center">
                 <div className="inline-block p-4 bg-gray-50 rounded-lg">
                   <img
-                     src={restaurant.qr_url}
-                     alt="Payment QR Code"
-                     className="w-40 h-40 mx-auto"
+                    src={restaurant.qr_url}
+                    alt="Payment QR Code"
+                    className="w-40 h-40 mx-auto"
                   />
                 </div>
                 <div className="mt-4 space-y-2">
@@ -443,4 +462,5 @@ const RestaurantProfile: React.FC<RestaurantProfileProps> = ({ restaurant, onUpd
     </div>
   );
 };
+
 export default RestaurantProfile;
