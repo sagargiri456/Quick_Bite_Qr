@@ -123,7 +123,7 @@ export default function Home() {
             >
               <div className="inline-flex items-center space-x-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium">
                 <Star className="w-4 h-4 fill-current" />
-                <span>Trusted by 10,000+ restaurants worldwide</span>
+                <span>Trusted by 50+ restaurants worldwide</span>
               </div>
             </motion.div>
 
