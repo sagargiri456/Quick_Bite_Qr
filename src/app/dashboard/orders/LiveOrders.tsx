@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import LiveOrdersComponent from '@/components/LiveOrdersComponent';
 import { Input } from '@/components/ui/input';
@@ -55,7 +55,7 @@ const LiveOrders = () => {
     (orders ?? []).reduce((sum, o) => sum + o.price * o.quantity, 0);
 
   // ===== fetch all orders for restaurants owned by the logged-in user =====
-  const fetchLiveOrders = async () => {
+  const fetchLiveOrders = useCallback(async () => {
     setRefreshing(true);
     try {
       // 1) current user
@@ -99,48 +99,55 @@ const LiveOrders = () => {
       if (error) throw error;
 
       // 4) normalize → one card per order item
-      const normalized: OrderItem[] = (data || []).flatMap((order: any) =>
-        (order.order_items || []).map((item: any) => ({
-          id: item.id,
-          quantity: item.quantity,
-          price: item.price,
-          status: dbToUiStatus(order.status),
-          created_at: order.created_at,
+      const normalized: OrderItem[] = (data || []).flatMap((order: unknown) => {
+        if (typeof order !== 'object' || order === null) return [];
+        const orderObj = order as Record<string, unknown>;
+        return (orderObj.order_items as unknown[] || []).map((item: unknown) => {
+          if (typeof item !== 'object' || item === null) return null;
+          const itemObj = item as Record<string, unknown>;
+          return {
+          id: itemObj.id as string,
+          quantity: itemObj.quantity as number,
+          price: itemObj.price as number,
+          status: dbToUiStatus(orderObj.status as string),
+          created_at: orderObj.created_at as string,
           order: {
-            id: order.id,
-            track_code: order.track_code ?? null,
-            table_id: order.table?.id ? String(order.table.id) : null,
-            table_number: order.table?.table_number ?? null,
-            is_prepaid: order.is_prepaid, // ADDED: Pass the prepaid status
+            id: orderObj.id as string,
+            track_code: orderObj.track_code as string | null,
+            table_id: orderObj.table ? String((orderObj.table as Record<string, unknown>).id) : null,
+            table_number: (orderObj.table as Record<string, unknown>)?.table_number as string | null ?? null,
+            is_prepaid: orderObj.is_prepaid as boolean,
             restaurant: {
-              id: order.restaurant?.id ?? '',
-              name: order.restaurant?.restaurant_name ?? '',
-              user_id: order.restaurant?.user_id ?? '',
+              id: (orderObj.restaurant as Record<string, unknown>)?.id as string ?? '',
+              name: (orderObj.restaurant as Record<string, unknown>)?.restaurant_name as string ?? '',
+              user_id: (orderObj.restaurant as Record<string, unknown>)?.user_id as string ?? '',
             },
           },
           menu_item: {
-            id: item.menu_item?.id ?? '',
-            name: item.menu_item?.name ?? '',
+            id: (itemObj.menu_item as Record<string, unknown>)?.id as string ?? '',
+            name: (itemObj.menu_item as Record<string, unknown>)?.name as string ?? '',
           },
-        }))
-      );
+        };
+        }).filter((item): item is OrderItem => item !== null);
+      });
 
       setLiveOrders(normalized);
       setErrorMsg(null);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('[LiveOrders.fetch]', e);
-      setErrorMsg(e?.message || 'Failed to load orders');
+      const errorMessage = e instanceof Error ? e.message : 'Failed to load orders';
+      setErrorMsg(errorMessage);
       setLiveOrders([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   // initial load
-  useEffect(() => { fetchLiveOrders(); }, []);
+  useEffect(() => { fetchLiveOrders(); }, [fetchLiveOrders]);
 
-  // realtime: refresh when any order changes for the owner’s restaurants
+  // realtime: refresh when any order changes for the owner's restaurants
   useEffect(() => {
     if (!restaurantIds.length) return;
 
@@ -158,7 +165,7 @@ const LiveOrders = () => {
     return () => {
       channels.forEach((ch) => supabase.removeChannel(ch));
     };
-  }, [restaurantIds]);
+  }, [restaurantIds, fetchLiveOrders]);
 
   // status + search filter
   const filteredOrders = useMemo(() => {

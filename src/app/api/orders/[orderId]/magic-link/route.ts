@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import crypto from "crypto";
 
-export async function POST(req: Request, { params }: { params: { orderId: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ orderId: string }> }) {
   try {
-    const { orderId } = params;
+    const { orderId } = await params;
     const supabase = await createServerClient();
 
     // validate order exists
@@ -54,8 +54,9 @@ export async function POST(req: Request, { params }: { params: { orderId: string
       expiresAt: pl.expires_at,
     });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("MagicLink POST error:", err);
-    return NextResponse.json({ error: err.message || "Internal error" }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : "Internal error";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

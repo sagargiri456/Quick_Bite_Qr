@@ -17,7 +17,7 @@ async function putJson(url: string, body: object) {
     let parsed;
     try { parsed = JSON.parse(errBody); } catch { parsed = { text: errBody }; }
     const message = parsed?.error || parsed?.message || parsed?.text || `HTTP ${res.status}`;
-    const e: any = new Error(message);
+    const e = new Error(message) as Error & { status: number; body: unknown };
     e.status = res.status;
     e.body = parsed;
     throw e;

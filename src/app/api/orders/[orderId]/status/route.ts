@@ -80,7 +80,7 @@ export async function PUT(
     }
 
     // Map incoming status to DB enum value (lowercase)
-    const updatePayload: any = {};
+    const updatePayload: { status?: string; estimated_time?: number | null } = {};
     if (incomingStatus) {
       const mapped = CLIENT_TO_DB_STATUS[incomingStatus];
       if (!mapped) {
@@ -111,8 +111,9 @@ export async function PUT(
     });
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Order status route error:", err);
-    return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : "Internal server error";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

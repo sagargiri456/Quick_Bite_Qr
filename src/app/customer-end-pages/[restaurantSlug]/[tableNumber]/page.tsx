@@ -46,8 +46,9 @@ export default function CustomerMenuPage() {
         setRestaurantDetails(details);
         const items = await getPublicMenuItems(restaurantSlug);
         setMenuItems(items || []);
-      } catch (err: any) {
-        setError(err.message || "An error occurred while loading the menu.");
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "An error occurred while loading the menu.";
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -122,7 +123,7 @@ export default function CustomerMenuPage() {
         <main className="p-4">
           {!restaurantDetails || menuItems.length === 0 ? (
             <div className="text-center mt-20">
-              <p className="text-xl text-gray-600">This restaurant's menu is not available right now.</p>
+              <p className="text-xl text-gray-600">This restaurant&apos;s menu is not available right now.</p>
             </div>
           ) : (
             <div className="space-y-12">

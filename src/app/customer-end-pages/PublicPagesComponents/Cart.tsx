@@ -85,7 +85,7 @@ export default function Cart({ isOpen, onClose, restaurantId, tableNumber, resta
     }
   };
 
-  const openUpiApp = async (upiLink: string, trackCode: string): Promise<boolean> => {
+  const openUpiApp = async (upiLink: string): Promise<boolean> => {
     try {
       const userAgent = navigator.userAgent || '';
       const isAndroid = /Android/i.test(userAgent);
@@ -142,7 +142,6 @@ export default function Cart({ isOpen, onClose, restaurantId, tableNumber, resta
       });
 
       // Normalize response structure
-      const orderId = createResp?.orderId;
       const upiLink = createResp?.upiLink || createResp?.upi_link;
       const trackCode = createResp?.trackCode || createResp?.track_code;
 
@@ -156,7 +155,7 @@ export default function Cart({ isOpen, onClose, restaurantId, tableNumber, resta
 
       // Try to open UPI app if link is available
       if (upiLink) {
-        const upiOpened = await openUpiApp(upiLink, trackCode);
+        const upiOpened = await openUpiApp(upiLink);
         if (upiOpened) {
           // UPI app should open, user will return later
           return;

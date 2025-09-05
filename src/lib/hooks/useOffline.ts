@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { offlineSync } from '@/lib/offline/offlineSync';
 import { offlineStorage } from '@/lib/offline/offlineStorage';
 
@@ -9,9 +9,9 @@ export interface OfflineStatus {
 }
 
 export interface OfflineActions {
-  queueAction: (type: string, data: any) => Promise<string>;
+  queueAction: (type: 'create_order' | 'update_menu' | 'delete_menu_item' | 'update_profile', data: unknown) => Promise<string>;
   syncNow: () => Promise<void>;
-  getPendingActions: () => Promise<any[]>;
+  getPendingActions: () => Promise<unknown[]>;
   clearPendingActions: () => Promise<void>;
 }
 
@@ -54,7 +54,7 @@ export function useOffline(): OfflineStatus & OfflineActions {
     };
   }, []);
 
-  const queueAction = async (type: string, data: any): Promise<string> => {
+  const queueAction = async (type: 'create_order' | 'update_menu' | 'delete_menu_item' | 'update_profile', data: unknown): Promise<string> => {
     try {
       const id = await offlineSync.queueAction({ type, data, retryCount: 0 });
       // Update pending actions count
@@ -76,8 +76,6 @@ export function useOffline(): OfflineStatus & OfflineActions {
         // Update pending actions count
         const newCount = await offlineSync.getPendingActionsCount();
         setPendingActionsCount(newCount);
-        
-        return result;
       } catch (error) {
         console.error('Manual sync failed:', error);
         throw error;
@@ -87,7 +85,7 @@ export function useOffline(): OfflineStatus & OfflineActions {
     }
   };
 
-  const getPendingActions = async (): Promise<any[]> => {
+  const getPendingActions = async (): Promise<unknown[]> => {
     try {
       return await offlineSync.getPendingActions();
     } catch (error) {
@@ -119,12 +117,13 @@ export function useOffline(): OfflineStatus & OfflineActions {
 
 // Hook for caching data
 export function useOfflineCache<T>(key: string, ttl: number = 24 * 60 * 60 * 1000) {
-  const [cachedData, setCachedData] = useState<T | null>(null);
+  const [cachedData] = useState<T | null>(null);
   const [isLoading] = useState(false);
 
   const getCachedData = async (): Promise<T | null> => {
     try {
-      return await offlineStorage.getCachedData(key);
+      const data = await offlineStorage.getCachedData(key);
+      return data as T | null;
     } catch (error) {
       console.error('Failed to get cached data:', error);
       return null;
@@ -167,7 +166,7 @@ export function useOfflineFirst<T>(
   const [error, setError] = useState<string | null>(null);
   const { getCachedData, setCachedData } = useOfflineCache<T>(key, ttl);
 
-  const fetchData = async (forceRefresh = false) => {
+  const fetchData = useCallback(async (forceRefresh = false) => {
     setIsLoading(true);
     setError(null);
 
@@ -203,11 +202,11 @@ export function useOfflineFirst<T>(
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [getCachedData, setCachedData, fetchFunction]);
 
   useEffect(() => {
     fetchData();
-  }, [key]);
+  }, [key, fetchData]);
 
   return {
     data,

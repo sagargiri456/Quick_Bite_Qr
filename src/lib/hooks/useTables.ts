@@ -25,7 +25,7 @@ export function useTables() {
     });
 
     if (!res.ok) {
-      let errText: any = {};
+      let errText: { error?: string } = {};
       try {
         errText = await res.json();
       } catch {
@@ -36,9 +36,10 @@ export function useTables() {
 
     const data = await res.json();
     setTables(data);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
-    setError(err.message || 'Failed to fetch tables');
+    const errorMessage = err instanceof Error ? err.message : 'Failed to fetch tables';
+    setError(errorMessage);
   } finally {
     setLoading(false);
   }

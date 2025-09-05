@@ -55,8 +55,9 @@ export default function SignUpPage() {
     try {
       await signUpWithRestaurant(formData);
       setSuccess(true);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

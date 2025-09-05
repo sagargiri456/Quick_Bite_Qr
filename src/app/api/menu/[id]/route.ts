@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
-async function verifyOwnership(supabase: any, menuItemId: string): Promise<boolean> {
+async function verifyOwnership(supabase: Awaited<ReturnType<typeof createServerClient>>, menuItemId: string): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return false;
 
@@ -28,14 +28,15 @@ async function verifyOwnership(supabase: any, menuItemId: string): Promise<boole
 // GET one menu item (no auth needed for public viewing, but can be added if required)
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createServerClient(); // FIXED: Removed await
+  const { id } = await params;
 
   const { data, error } = await supabase
     .from("menu_items")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (error) {
@@ -48,12 +49,13 @@ export async function GET(
 // UPDATE one menu item
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase =await createServerClient(); // FIXED: Removed await
+  const { id } = await params;
   
   // Authorization check
-  const isOwner = await verifyOwnership(supabase, params.id);
+  const isOwner = await verifyOwnership(supabase, id);
   if (!isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
@@ -70,7 +72,7 @@ export async function PUT(
       photo_url: body.photo_url,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", params.id)
+    .eq("id", id)
     .select()
     .single();
 
@@ -84,12 +86,13 @@ export async function PUT(
 // DELETE one menu item
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase =await createServerClient(); // FIXED: Removed await
+  const { id } = await params;
 
   // Authorization check
-  const isOwner = await verifyOwnership(supabase, params.id);
+  const isOwner = await verifyOwnership(supabase, id);
   if (!isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
@@ -97,7 +100,7 @@ export async function DELETE(
   const { error } = await supabase
     .from("menu_items")
     .delete()
-    .eq("id", params.id);
+    .eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });

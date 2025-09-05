@@ -4,16 +4,11 @@ import StatusClient from './StatusClient';
 import { notFound } from 'next/navigation';
 
 type PageProps = {
-  params: Record<string, any> | Promise<Record<string, any>>;
+  params: Promise<{ restaurantSlug: string; code: string }>;
 };
 
 export default async function OrderTrackPage({ params }: PageProps) {
-  // await params because Next may pass a thenable
-  const p = (await params) ?? {};
-
-  // Accept multiple possible param names so this file works even if you rename later
-  const restaurantSlug = p.restaurantSlug || p.restaurant || p.slug;
-  const orderCode = p.code || p.orderCode || p.track_code || p.trackCode;
+  const { restaurantSlug, code: orderCode } = await params;
 
   if (!restaurantSlug || !orderCode) return notFound();
 
@@ -62,7 +57,7 @@ export default async function OrderTrackPage({ params }: PageProps) {
         eta: order.estimated_time,
         createdAt: order.created_at,
         totalAmount: order.total_amount,
-        items: (orderItems ?? []) as any[],
+        items: (orderItems ?? []) as unknown as { quantity: number; price: number; menu_item: string; menu_items: { name: string } | null }[],
       }}
       restaurant={{
         name: restaurant.restaurant_name,

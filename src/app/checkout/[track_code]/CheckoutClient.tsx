@@ -2,6 +2,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -57,7 +58,7 @@ export default function CheckoutClient({ initialData }: { initialData: InitialDa
         <CardContent>
           <div className="flex justify-center items-center my-4 h-60 w-60 mx-auto border p-2 rounded-xl bg-white shadow-inner">
             {initialData.paymentQrUrl ? (
-              <img src={initialData.paymentQrUrl} alt="UPI QR Code" className="w-full h-full rounded-md" />
+              <Image src={initialData.paymentQrUrl} alt="UPI QR Code" width={240} height={240} className="w-full h-full rounded-md" />
             ) : (
               <div className="flex flex-col items-center text-center text-gray-500">
                 <Loader2 className="h-12 w-12 animate-spin text-blue-600" />

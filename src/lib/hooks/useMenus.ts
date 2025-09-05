@@ -13,9 +13,10 @@ export function useMenus() {
       setLoading(true);
       const data = await getMenus();
       setMenus(data);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
+    } finally {
       setLoading(false);
     }
   }, []);

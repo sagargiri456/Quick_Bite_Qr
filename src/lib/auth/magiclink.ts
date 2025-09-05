@@ -31,7 +31,7 @@ export const sendMagicLink = async (email: string) => {
     }
 
     return { data, error: null };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Unexpected magic link error:', err);
     return { data: null, error: 'An unexpected error occurred. Please try again.' };
   }

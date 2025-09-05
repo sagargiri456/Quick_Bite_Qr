@@ -33,8 +33,6 @@ export default function StatusClient({
   restaurant: Restaurant;
 }) {
   const [order, setOrder] = useState<InitialOrder>(initialOrder);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Poll the public status endpoint every 6s to reflect real-time changes
   useEffect(() => {
@@ -54,7 +52,7 @@ export default function StatusClient({
           totalAmount: data.total_amount ?? prev.totalAmount,
           items: data.items ?? prev.items,
         }));
-      } catch (err) {
+      } catch {
         // ignore polling transient errors
       }
     }
@@ -193,11 +191,6 @@ export default function StatusClient({
         </div>
       </div>
 
-      {error && (
-        <div className="mt-6 text-sm text-red-600">
-          {error}
-        </div>
-      )}
     </div>
   );
 }

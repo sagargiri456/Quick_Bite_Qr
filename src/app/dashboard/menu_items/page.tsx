@@ -39,7 +39,7 @@ export default function MenuItemsPage() {
     try {
       await deleteMenuItem(itemToDelete.id);
       toast.success(`"${itemToDelete.name}" was deleted successfully.`);
-    } catch (err) {
+    } catch {
       toast.error("Failed to delete the item.");
     } finally {
       setDeleteModalOpen(false);

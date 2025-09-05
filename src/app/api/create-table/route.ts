@@ -30,9 +30,10 @@ const res = await fetch(
     const data = await res.json();
 
     return NextResponse.json({ success: true, ...data });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json(
-      { error: err.message || "Unknown error" },
+      { error: errorMessage },
       { status: 500 }
     );
   }

@@ -173,7 +173,7 @@ type Restaurant = {
 };
 
 export default function AddTablePage() {
-  const [isSubmitting,setIsSubmitting] =useState<boolean>();
+  const [isSubmitting] = useState<boolean>(false);
   const router = useRouter();
   const [loading,setLoading] = useState<boolean>(true);
   const [restaurant,setRestaurant] = useState<Restaurant | null>(null);
@@ -234,7 +234,9 @@ export default function AddTablePage() {
     if (error) throw error;
     console.log("Table created:", data);
       }
-      restaurantId && createTable(restaurantId,tableNumber);
+      if (restaurantId) {
+        createTable(restaurantId, tableNumber);
+      }
     };
 
 const handleDownloadQR = (url: string) => {
@@ -303,11 +305,14 @@ const handleDownloadQR = (url: string) => {
               </button>
           </div>
         </form>
-        <button
-                onClick={()=>url && handleDownloadQR(url)}
-              >
-                Download QR
-              </button>
+        {url && (
+          <button
+            onClick={() => handleDownloadQR(url)}
+            className="mt-4 w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700"
+          >
+            Download QR
+          </button>
+        )}
       </div>
     </div>
   );

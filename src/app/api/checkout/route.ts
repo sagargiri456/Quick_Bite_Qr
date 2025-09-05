@@ -80,8 +80,9 @@ export async function POST(req: Request) {
       paymentQrUrl: qrData?.qrDataUrl ?? null,
     });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Checkout API Final Catch Block:", err);
-    return NextResponse.json({ error: err.message || "An unexpected error occurred." }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred.";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

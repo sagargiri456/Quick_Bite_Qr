@@ -5,9 +5,10 @@ import { createServerClient } from "@/lib/supabase/server";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createServerClient(); // FIXED: Removed await
+  const { id } = await params;
 
   // Authorization check to ensure the order belongs to the user or is public
   const { data: { user } } = await supabase.auth.getUser();
@@ -22,7 +23,7 @@ export async function GET(
         const { count } = await supabase
           .from('orders')
           .select('*', { count: 'exact', head: true })
-          .eq('id', params.id)
+          .eq('id', id)
           .eq('restaurant_id', restaurant.id);
         
         // If the order does not belong to the restaurant, deny access.
@@ -35,7 +36,7 @@ export async function GET(
   const { data, error } = await supabase
     .from("order_items")
     .select("*, menu_items(name, price)") // Joined query to get item details
-    .eq("order_id", params.id);
+    .eq("order_id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

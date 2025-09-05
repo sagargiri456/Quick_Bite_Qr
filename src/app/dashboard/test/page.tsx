@@ -1,10 +1,8 @@
 // src/app/dashboard/test/page.tsx
 
 import { createServerClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
 
 export default async function TestPage() {
-  const cookieStore = cookies();
   const supabase = await createServerClient(); // FIXED: Removed await
 
   const {

@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as menuApi from '@/lib/api/menu';
+import { MenuItem } from '@/types/menu';
 
 export function useMenuItems() {
-  const [menuItems, setMenuItems] = useState<menuApi.MenuItem[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,7 +43,7 @@ export function useMenuItems() {
     }
   };
 
-  const updateMenuItem = async (id: number, updatedItemData: Partial<menuApi.MenuItem>) => {
+  const updateMenuItem = async (id: number, updatedItemData: Partial<MenuItem>) => {
     try {
       const updatedItem = await menuApi.updateMenuItem(id, updatedItemData);
       setMenuItems(prev => prev.map(item => (item.id === id ? updatedItem : item)));

@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 
 export default function TestPage() {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [restaurants, setRestaurants] = useState<any[]>([]);
+  const [orders, setOrders] = useState<{ id: string; track_code: string; status: string; restaurant_id: string; created_at: string }[]>([]);
+  const [restaurants, setRestaurants] = useState<{ id: string; restaurant_name: string; slug: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

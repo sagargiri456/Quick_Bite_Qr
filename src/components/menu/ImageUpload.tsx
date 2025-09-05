@@ -51,8 +51,9 @@ export default function ImageUpload({ onChange, value }: ImageUploadProps) {
         // Upload the compressed file
         await startUpload([compressedFile]);
 
-      } catch (error: any) {
-        setUploadError(error.message || 'Compression failed.');
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Compression failed.';
+        setUploadError(errorMessage);
         setIsUploading(false);
         setPreview(null);
       }

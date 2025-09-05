@@ -66,7 +66,7 @@ export async function POST(req: Request) {
   }
 
   if (cartItems.length > 0) {
-    const itemsPayload = cartItems.map((i: any) => ({
+    const itemsPayload = cartItems.map((i: { id: string; quantity: number; price: number }) => ({
       order_id: order.id,
       menu_item: i.id,
       quantity: i.quantity,

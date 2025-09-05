@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Failed to create order in database." }, { status: 500 });
     }
 
-    const itemsPayload = cartItems.map((i: any) => ({
+    const itemsPayload = cartItems.map((i: { id: string; quantity: number; price: number }) => ({
       order_id: order.id,
       menu_item: i.id,
       quantity: i.quantity,
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, trackCode: order.track_code }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Postpaid API Error:", err);
     return NextResponse.json({ error: "An unexpected error occurred." }, { status: 500 });
   }

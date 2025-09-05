@@ -30,9 +30,9 @@ export class OfflineSync {
           await this.processAction(action);
           await offlineStorage.removePendingAction(action.id);
           result.syncedActions++;
-        } catch (err: any) {
+        } catch (err: unknown) {
           result.failedActions++;
-          const msg = err?.message || String(err);
+          const msg = err instanceof Error ? err.message : String(err);
           result.errors.push(`Failed to sync ${action.type}: ${msg}`);
           const retry = action.retryCount + 1;
           if (retry >= 3) {
@@ -59,28 +59,34 @@ export class OfflineSync {
     }
   }
 
-  private async syncCreateOrder(data: any) {
+  private async syncCreateOrder(data: unknown) {
     const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
     if (!res.ok) throw new Error(await res.text());
   }
 
-  private async syncUpdateMenu(data: any) {
-    const res = await fetch(`/api/menu/${data.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+  private async syncUpdateMenu(data: unknown) {
+    const dataObj = data as Record<string, unknown>;
+    const res = await fetch(`/api/menu/${dataObj.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
     if (!res.ok) throw new Error(await res.text());
   }
 
-  private async syncDeleteMenuItem(data: any) {
-    const res = await fetch(`/api/menu/${data.id}`, { method: 'DELETE' });
+  private async syncDeleteMenuItem(data: unknown) {
+    const dataObj = data as Record<string, unknown>;
+    const res = await fetch(`/api/menu/${dataObj.id}`, { method: 'DELETE' });
     if (!res.ok) throw new Error(await res.text());
   }
 
-  private async syncUpdateProfile(data: any) {
+  private async syncUpdateProfile(data: unknown) {
     const res = await fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
     if (!res.ok) throw new Error(await res.text());
   }
 
   async hasPendingActions() {
     return (await offlineStorage.getPendingActions()).length > 0;
+  }
+
+  async getPendingActions() {
+    return await offlineStorage.getPendingActions();
   }
 
   async getPendingActionsCount() {

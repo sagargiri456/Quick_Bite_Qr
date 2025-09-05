@@ -5,9 +5,9 @@ import { Scan } from 'lucide-react';
 import Link from "next/link";
 
 // This page now serves as a guide for users who land on the restaurant slug URL without a table ID.
-export default async function RestaurantLandingPage({ params }: { params: { restaurantSlug: string } }) {
-
-  const restaurant = await getRestaurantBySlug(params.restaurantSlug);
+export default async function RestaurantLandingPage({ params }: { params: Promise<{ restaurantSlug: string }> }) {
+  const { restaurantSlug } = await params;
+  const restaurant = await getRestaurantBySlug(restaurantSlug);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">

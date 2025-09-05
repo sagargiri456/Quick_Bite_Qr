@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     // fetch order current status and cart_data
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, status, cart_data')
+      .select('id, status, cart_data, is_prepaid')
       .eq('id', orderId)
       .single();
 
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true, message: 'Order confirmed successfully.' });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Webhook handler error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

@@ -17,4 +17,10 @@ export type Json =
 
 export interface Database {
   // This would be populated by the generation script
+  public: {
+    Tables: Record<string, never>;
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+  };
 }

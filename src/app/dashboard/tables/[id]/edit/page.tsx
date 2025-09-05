@@ -64,8 +64,9 @@ export default function EditTablePage() {
             toast.success('Table updated successfully!');
             router.push('/dashboard/tables');
             router.refresh(); // Tell Next.js to refresh server components
-        } catch (error: any) {
-            toast.error(`Update failed: ${error.message}`);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Update failed';
+            toast.error(`Update failed: ${errorMessage}`);
         } finally {
             setIsSubmitting(false);
         }

@@ -3,10 +3,10 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createServerClient(); // FIXED: Removed await
   const { status, note, etaMinutes } = await req.json();
-  const orderId = params.id;
+  const { id: orderId } = await params;
 
   // FIXED: Added Authorization check
   const { data: { user } } = await supabase.auth.getUser();

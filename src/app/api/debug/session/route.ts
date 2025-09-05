@@ -25,7 +25,8 @@ export async function GET(req: Request) {
       user: userData ?? null,
       userError: userError ? (userError.message || userError) : null,
     });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: err.message || String(err) }, { status: 500 });
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ ok: false, error: errorMessage }, { status: 500 });
   }
 }

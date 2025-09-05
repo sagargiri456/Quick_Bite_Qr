@@ -41,7 +41,7 @@ export default function LoginPage() {
 
     const { error } = await loginWithEmail(email, password)
     if (error) {
-      setError(error.message)
+      setError(error)
       setIsSubmitting(false)
     } else {
       router.push('/dashboard')

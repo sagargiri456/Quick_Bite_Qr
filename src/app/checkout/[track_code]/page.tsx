@@ -4,14 +4,13 @@ import CheckoutClient from './CheckoutClient';
 import { notFound, redirect } from 'next/navigation';
 
 type PageProps = {
-  params: Record<string, any> | Promise<Record<string, any>>;
-  searchParams?: Record<string, any>;
+  params: Promise<{ track_code: string }>;
+  searchParams?: Promise<Record<string, unknown>>;
 };
 
 export default async function CheckoutPage({ params, searchParams }: PageProps) {
-  const p = (await params) ?? {};
-  const s = searchParams ?? {};
-  const track_code = p.track_code || p.trackCode || p.code;
+  const { track_code } = await params;
+  const s = searchParams ? await searchParams : {};
   const slug = s.slug || s.restaurantSlug;
 
   if (!track_code || !slug) return notFound();
@@ -35,7 +34,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps) 
     status: order.status,
     upiLink: order.upi_link,
     paymentQrUrl: order.payment_qr_url,
-    restaurantSlug: slug,
+    restaurantSlug: slug as string,
     trackCode: order.track_code,
   };
 

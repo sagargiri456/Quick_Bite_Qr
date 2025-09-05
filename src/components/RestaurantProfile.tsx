@@ -1,5 +1,6 @@
 'use client';
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { MapPin, Phone, Mail, User, Calendar, QrCode, CreditCard, Edit, Save, X, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Restaurant, ValidationErrors, RestaurantProfileProps } from '@/lib/types/types';
+import { ValidationErrors, RestaurantProfileProps } from '@/lib/types/types';
 import { formatDate, getInitials } from '@/lib/utils';
 
 // Form data interface for better type safety
@@ -156,7 +157,7 @@ const RestaurantProfile: React.FC<RestaurantProfileProps> = ({ restaurant, onUpd
       });
       setIsEditing(false);
       showNotification('success', 'Your restaurant profile has been successfully updated.');
-    } catch (error) {
+    } catch {
       showNotification('error', 'There was an error updating your profile. Please try again.');
     } finally {
       setIsLoading(false);
@@ -421,9 +422,11 @@ const RestaurantProfile: React.FC<RestaurantProfileProps> = ({ restaurant, onUpd
               </CardHeader>
               <CardContent className="text-center">
                 <div className="inline-block p-4 bg-gray-50 rounded-lg">
-                  <img
+                  <Image
                     src={restaurant.qr_url}
                     alt="Payment QR Code"
+                    width={160}
+                    height={160}
                     className="w-40 h-40 mx-auto"
                   />
                 </div>

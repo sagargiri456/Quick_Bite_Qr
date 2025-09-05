@@ -41,11 +41,12 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
   const handleUpdate = async (orderId: string, status: OrderItemStatus, eta?: number | null) => {
     try {
       setUpdatingId(orderId);
-      await setOrderStatus(orderId, status as any, eta ?? null);
+      await setOrderStatus(orderId, status, eta ?? null);
       await fetchLiveOrders();
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('[update status]', e);
-      alert(e?.message || 'Failed to update status');
+      const errorMessage = e instanceof Error ? e.message : 'Failed to update status';
+      alert(errorMessage);
     } finally {
       setUpdatingId(null);
     }

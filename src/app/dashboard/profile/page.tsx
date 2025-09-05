@@ -40,9 +40,10 @@ export default function RestaurantProfilePage() {
         } else {
           throw new Error('No restaurant profile found for your account.');
         }
-      } catch (e: any) {
-        setError(e.message);
-      } finally {
+      } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : 'An error occurred';
+        setError(errorMessage);
+      } finally {
         setLoading(false);
       }
     };
@@ -50,12 +51,12 @@ export default function RestaurantProfilePage() {
     fetchRestaurant();
   }, []);
 
-  const handleUpdateProfile = async (updatedData: Partial<Restaurant>) => {
-    if (!restaurant) throw new Error("No restaurant to update.");
-    
-    const data = await updateProfile(updatedData);
-    setRestaurant(data as Restaurant);
-  };
+  const handleUpdateProfile = async (updatedData: Partial<Restaurant>) => {
+    if (!restaurant) throw new Error("No restaurant to update.");
+    
+    const data = await updateProfile(updatedData as unknown as Partial<import('@/types/restaurant').Restaurant>);
+    setRestaurant(data as Restaurant);
+  };
 
   if (loading) {
     return (

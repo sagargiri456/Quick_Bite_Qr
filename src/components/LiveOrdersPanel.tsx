@@ -4,11 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bell, X } from "lucide-react";
+import { Bell } from "lucide-react";
 
-interface Props {
-  dateRange?: any;
-}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,9 +34,8 @@ function getStatusColor(status: string) {
   }
 }
 
-export default function LiveOrdersPanel({ dateRange }: Props) {
+export default function LiveOrdersPanel() {
   const [liveOrders, setLiveOrders] = useState<Order[]>([]);
-  const [newOrderCount, setNewOrderCount] = useState(0);
   const [isPulsing, setIsPulsing] = useState(false);
 
   useEffect(() => {
@@ -62,7 +58,6 @@ export default function LiveOrdersPanel({ dateRange }: Props) {
         { event: "INSERT", schema: "public", table: "orders" },
         (payload) => {
           setLiveOrders((prev) => [payload.new as Order, ...prev].slice(0, 12));
-          setNewOrderCount((c) => c + 1);
           setIsPulsing(true);
           setTimeout(() => setIsPulsing(false), 3000);
         }

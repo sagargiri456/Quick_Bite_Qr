@@ -2,9 +2,9 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
-export async function GET(req: Request, { params }: { params: { token: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ token: string }> }) {
   try {
-    const { token } = params;
+    const { token } = await params;
     if (!token) return NextResponse.json({ error: "Missing token." }, { status: 400 });
 
     const supabase = await createServerClient();
@@ -67,7 +67,7 @@ export async function GET(req: Request, { params }: { params: { token: string } 
     const redirectUrl = new URL(checkoutPath, base).toString();
 
     return NextResponse.redirect(redirectUrl);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Magic link GET error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
