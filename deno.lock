@@ -3303,6 +3303,7 @@
         "npm:@types/qrcode@^1.5.5",
         "npm:@types/react-dom@19",
         "npm:@types/react@19",
+        "npm:@types/web-push@^3.6.4",
         "npm:@uploadthing/react@^7.3.3",
         "npm:browser-image-compression@^2.0.2",
         "npm:class-variance-authority@~0.7.1",

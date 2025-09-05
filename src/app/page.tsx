@@ -268,8 +268,8 @@ export default function Home() {
             className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center"
           >
             {[
-              { number: "10K+", label: "Restaurants Served" },
-              { number: "1M+", label: "QR Codes Generated" },
+              { number: "50++", label: "Restaurants Served" },
+              { number: "500+", label: "QR Codes Generated" },
               { number: "99.9%", label: "Uptime Guarantee" }
             ].map((stat, index) => (
               <motion.div
@@ -330,7 +330,7 @@ export default function Home() {
               <span className="text-xl font-bold">QuickBiteQR</span>
             </div>
             <div className="text-slate-400">
-              © 2024 QuickBiteQR. All rights reserved.
+              © 2025 QuickBiteQR. All rights reserved.
             </div>
           </div>
         </div>
