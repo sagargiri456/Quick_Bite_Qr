@@ -8,6 +8,7 @@ import { AlertTriangle } from 'lucide-react';
 
 export type OrderItemStatus = 'Pending' | 'Confirmed' | 'Preparing' | 'Ready' | 'Cancelled';
 
+// MODIFIED: Added is_prepaid to the order object
 export interface OrderItem {
   id: string;
   quantity: number;
@@ -19,6 +20,7 @@ export interface OrderItem {
     track_code: string | null;
     table_id: string | null;
     table_number: string | null;
+    is_prepaid: boolean; // ADDED: To track payment method
     restaurant: { id: string; name: string; user_id: string };
   };
   menu_item: { id: string; name: string };
@@ -82,7 +84,7 @@ const LiveOrders = () => {
       const { data, error } = await supabase
         .from('orders')
         .select(`
-          id, track_code, status, created_at,
+          id, track_code, status, created_at, is_prepaid,
           table:tables ( id, table_number ),
           restaurant:restaurants ( id, restaurant_name, user_id ),
           order_items (
@@ -109,6 +111,7 @@ const LiveOrders = () => {
             track_code: order.track_code ?? null,
             table_id: order.table?.id ? String(order.table.id) : null,
             table_number: order.table?.table_number ?? null,
+            is_prepaid: order.is_prepaid, // ADDED: Pass the prepaid status
             restaurant: {
               id: order.restaurant?.id ?? '',
               name: order.restaurant?.restaurant_name ?? '',
