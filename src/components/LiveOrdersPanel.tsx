@@ -40,10 +40,10 @@ export default function LiveOrdersPanel() {
 
   useEffect(() => {
     async function fetchOrders() {
-      
+
       const { data, error } = await supabase
         .from("orders")
-        .select("id, table_id, status, total_amount, created_at, estimated_time").eq()
+        .select("id, table_id, status, total_amount, created_at, estimated_time")
         .order("created_at", { ascending: false })
         .limit(12);
 

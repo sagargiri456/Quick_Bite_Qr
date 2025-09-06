@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { restaurantId, tableNumber } = await req.json();
+    const { restaurantSlug, tableNumber } = await req.json();
 
     // Call your Supabase Edge Function
 const res = await fetch(
@@ -15,7 +15,7 @@ const res = await fetch(
       "Authorization": `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`, 
       // or SUPABASE_SERVICE_ROLE_KEY if you want more power (be careful!)
     },
-    body: JSON.stringify({ restaurantId, tableNumber }),
+    body: JSON.stringify({ restaurantSlug, tableNumber }),
   }
 );
 
