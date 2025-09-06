@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import LiveOrdersPanel from "@/components/LiveOrdersPanel";
+import LiveOrders from "./orders/LiveOrders";
 
 export default function DashboardPage() {
   const [isOffline, setIsOffline] = useState(false);
@@ -82,7 +83,8 @@ export default function DashboardPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <LiveOrdersPanel />
+              {/* <LiveOrdersPanel /> */}
+              <LiveOrders />
             </motion.div>
           )}
         </div>
