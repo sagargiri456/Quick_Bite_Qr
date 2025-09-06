@@ -1,5 +1,5 @@
 // src/lib/api/orders.ts
-import { CartItem } from '@/app/customer-end-pages/store/cartStore';
+import { CartItem } from '@/app/(customer-end-pages)/store/cartStore';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'complete' | 'cancelled';
 export type CustomerOrderStatus = 'Pending' | 'Confirmed' | 'Preparing' | 'Ready' | 'Complete' | 'Cancelled';

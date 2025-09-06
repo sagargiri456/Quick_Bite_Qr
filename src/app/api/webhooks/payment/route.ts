@@ -1,7 +1,7 @@
 // src/app/api/webhooks/payment/route.ts
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { CartItem } from "@/app/customer-end-pages/store/cartStore";
+import { CartItem } from "@/app/(customer-end-pages)/store/cartStore";
 
 export async function POST(req: Request) {
   try {

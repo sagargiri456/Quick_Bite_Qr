@@ -44,7 +44,7 @@ export default function CheckoutClient({ initialData }: { initialData: InitialDa
 
   useEffect(() => {
     if (currentStatus !== 'payment_pending') {
-      router.push(`/customer-end-pages/${initialData.restaurantSlug}/orders/${initialData.trackCode}`);
+      router.push(`/(customer-end-pages)/restaurant/${initialData.restaurantSlug}/orders/${initialData.trackCode}`);
     }
   }, [currentStatus, router, initialData.restaurantSlug, initialData.trackCode]);
 

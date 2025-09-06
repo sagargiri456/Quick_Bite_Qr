@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { getPublicMenuItems, getRestaurantDetails } from '@/lib/api/public';
-import CustomerMenuItemCard from '@/app/customer-end-pages/PublicPagesComponents/CustomerMenuItemCard';
-import Cart from '@/app/customer-end-pages/PublicPagesComponents/Cart';
-import { useCartStore } from '@/app/customer-end-pages/store/cartStore';
+import CustomerMenuItemCard from '@/app/(customer-end-pages)/PublicPagesComponents/CustomerMenuItemCard';
+import Cart from '@/app/(customer-end-pages)/PublicPagesComponents/Cart';
+import { useCartStore } from '@/app/(customer-end-pages)/store/cartStore';
 import { MenuItem as BaseMenuItem, MenuCategory } from '@/types/menu';
 import { ShoppingCart, Search, Loader2, AlertTriangle } from 'lucide-react';
 

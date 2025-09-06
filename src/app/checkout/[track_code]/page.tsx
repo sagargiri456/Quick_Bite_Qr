@@ -25,7 +25,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps) 
   if (error || !order) return notFound();
 
   if (order.status && order.status !== 'payment_pending') {
-    redirect(`/customer-end-pages/${slug}/orders/${order.track_code}`);
+    redirect(`/(customer-end-pages)/restaurant/${slug}/orders/${order.track_code}`);
   }
 
   const initialData = {

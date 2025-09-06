@@ -57,7 +57,7 @@ export default function AddTablePage() {
         fetchRestaurant()
       },[]) 
 
-
+      console.log(restaurant);
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
 

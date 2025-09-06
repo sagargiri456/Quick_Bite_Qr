@@ -125,7 +125,7 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
                           <CardTitle>
                             #{order.order.id.slice(-6)} • 
                             <Link
-                              href={`/customer-end-pages/${order.order.restaurant.name.toLowerCase().replace(/\s+/g, '-')}/orders/${order.order.track_code}`}
+                              href={`/(customer-end-pages)/restaurant/${order.order.restaurant.name.toLowerCase().replace(/\s+/g, '-')}/orders/${order.order.track_code}`}
                               className="text-blue-600 hover:underline ml-1"
                               target="_blank"
                             >

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useCartStore } from '@/app/customer-end-pages/store/cartStore';
+import { useCartStore } from '@/app/(customer-end-pages)/store/cartStore';
 import CartItem from './CartItem';
 import { X, ShoppingCart, Loader2, CreditCard, Landmark } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -197,7 +197,7 @@ export default function Cart({ isOpen, onClose, restaurantId, tableNumber, resta
       if (data?.success && data?.trackCode) {
         setOrderSuccess(true);
         clearCart();
-        router.push(`/customer-end-pages/${restaurantSlug}/orders/${data.trackCode}`);
+        router.push(`/(customer-end-pages)/restaurnat/${restaurantSlug}/orders/${data.trackCode}`);
       } else {
         throw new Error(data?.error || 'Failed to place postpaid order.');
       }
