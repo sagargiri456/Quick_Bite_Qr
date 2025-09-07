@@ -4,11 +4,11 @@ import StatusClient from './StatusClient';
 import { notFound } from 'next/navigation';
 
 type PageProps = {
-  params: Promise<{ restaurantSlug: string; code: string }>;
+  params: Promise<{ restaurantSlug: string; Code: string }>;
 };
 
 export default async function OrderTrackPage({ params }: PageProps) {
-  const { restaurantSlug, code: orderCode } = await params;
+  const { restaurantSlug, Code: orderCode } = await params;
 
   if (!restaurantSlug || !orderCode) return notFound();
 
