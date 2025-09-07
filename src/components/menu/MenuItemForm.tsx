@@ -125,7 +125,7 @@ export default function MenuItemForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Price */}
           <div>
-            <label htmlFor="price" className="block text-lg font-semibold text-gray-800 mb-2">Price ($) *</label>
+            <label htmlFor="price" className="block text-lg font-semibold text-gray-800 mb-2">Price (₹) *</label>
             <input
               type="text"
               id="price"
