@@ -32,7 +32,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">
       {/* Hero / Banner Section */}
-      <div className="relative overflow-hidden rounded-xl mb-8">
+      <div className="relative overflow-hidden rounded-xl mb-4 lg:mb-8">
         <div className="absolute inset-0 z-0">
           <Image
             src="/restaurant-interior.jpg"
@@ -43,11 +43,11 @@ export default function DashboardPage() {
           />
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 via-purple-900/60 to-indigo-900/40 z-10"></div>
-        <div className="relative z-20 p-10 text-white">
-          <h1 className="text-3xl font-bold">
+        <div className="relative z-20 p-4 sm:p-6 lg:p-10 text-white">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">
             Welcome to QuickBite QR Dashboard
           </h1>
-          <p className="mt-2 text-lg opacity-80">
+          <p className="mt-2 text-base sm:text-lg opacity-80">
             Manage your restaurant tables, menu, and live orders in one place.
           </p>
         </div>
@@ -65,8 +65,8 @@ export default function DashboardPage() {
       )}
 
       {/* Main Dashboard Content */}
-      <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
-        <div className="max-w-[2000px] mx-auto space-y-8">
+      <div className="flex-1 px-2 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-12">
+        <div className="max-w-[2000px] mx-auto space-y-4 lg:space-y-8">
           {loading ? (
             <div className="bg-white p-6 rounded-xl shadow-md text-center">
               <p className="animate-pulse text-gray-500">
@@ -88,7 +88,7 @@ export default function DashboardPage() {
             </motion.div>
           )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

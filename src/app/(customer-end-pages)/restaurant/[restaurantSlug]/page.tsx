@@ -11,19 +11,19 @@ export default async function RestaurantLandingPage({ params }: { params: Promis
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full text-center bg-white p-8 rounded-2xl shadow-lg">
-        <Scan size={60} className="mx-auto text-blue-500 mb-6" />
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+      <div className="max-w-sm sm:max-w-md w-full text-center bg-white p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg">
+        <Scan size={48} className="sm:w-15 sm:h-15 mx-auto text-blue-500 mb-4 sm:mb-6" />
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
           Welcome to {restaurant?.restaurant_name || 'Our Restaurant'}!
         </h1>
-        <p className="text-gray-600 text-lg mb-8">
+        <p className="text-gray-600 text-base sm:text-lg mb-6 sm:mb-8">
           To view the menu and place an order, please scan the QR code located at your table.
         </p>
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <p className="font-semibold text-blue-800">
+        <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
+          <p className="font-semibold text-blue-800 text-sm sm:text-base">
             Looking for the dashboard?
           </p>
-          <Link href="/login" className="text-blue-600 hover:underline">
+          <Link href="/login" className="text-blue-600 hover:underline text-sm sm:text-base">
             Restaurant Login
           </Link>
         </div>

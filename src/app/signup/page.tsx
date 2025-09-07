@@ -71,9 +71,9 @@ export default function SignUpPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <div className="bg-white rounded-2xl shadow-md p-8">
-          <h1 className="text-3xl font-bold text-gray-800 text-center">Create Your Account</h1>
-          <p className="text-gray-600 mt-2 text-center">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-6 sm:p-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 text-center">Create Your Account</h1>
+          <p className="text-gray-600 mt-2 text-center text-sm sm:text-base">
             Set up your restaurant profile to get started.
           </p>
 
@@ -104,16 +104,16 @@ export default function SignUpPage() {
               </Link>
             </motion.div>
           ) : (
-            <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <input name="owner_name" type="text" placeholder="Owner's Name" value={formData.owner_name} onChange={handleChange} required className="w-full p-3 border-2 rounded-lg text-gray-900" disabled={isOffline}/>
-                <input name="restaurant_name" type="text" placeholder="Restaurant Name" value={formData.restaurant_name} onChange={handleChange} required className="w-full p-3 border-2 rounded-lg text-gray-900" disabled={isOffline}/>
-                <input name="email" type="email" placeholder="Email Address" value={formData.email} onChange={handleChange} required className="w-full p-3 border-2 rounded-lg text-gray-900" disabled={isOffline}/>
-                <input name="password" type="password" placeholder="Password" value={formData.password} onChange={handleChange} required className="w-full p-3 border-2 rounded-lg text-gray-900" disabled={isOffline}/>
-                <input name="phone" type="tel" placeholder="Phone Number" value={formData.phone} onChange={handleChange} required className="w-full p-3 border-2 rounded-lg text-gray-900" disabled={isOffline}/>
-                <input name="address" type="text" placeholder="Address" value={formData.address} onChange={handleChange} required className="w-full p-3 border-2 rounded-lg text-gray-900" disabled={isOffline}/>
+            <form onSubmit={handleSubmit} className="mt-6 sm:mt-8 space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <input name="owner_name" type="text" placeholder="Owner's Name" value={formData.owner_name} onChange={handleChange} required className="w-full p-3 border-2 rounded-lg text-gray-900 text-sm sm:text-base" disabled={isOffline}/>
+                <input name="restaurant_name" type="text" placeholder="Restaurant Name" value={formData.restaurant_name} onChange={handleChange} required className="w-full p-3 border-2 rounded-lg text-gray-900 text-sm sm:text-base" disabled={isOffline}/>
+                <input name="email" type="email" placeholder="Email Address" value={formData.email} onChange={handleChange} required className="w-full p-3 border-2 rounded-lg text-gray-900 text-sm sm:text-base" disabled={isOffline}/>
+                <input name="password" type="password" placeholder="Password" value={formData.password} onChange={handleChange} required className="w-full p-3 border-2 rounded-lg text-gray-900 text-sm sm:text-base" disabled={isOffline}/>
+                <input name="phone" type="tel" placeholder="Phone Number" value={formData.phone} onChange={handleChange} required className="w-full p-3 border-2 rounded-lg text-gray-900 text-sm sm:text-base" disabled={isOffline}/>
+                <input name="address" type="text" placeholder="Address" value={formData.address} onChange={handleChange} required className="w-full p-3 border-2 rounded-lg text-gray-900 text-sm sm:text-base" disabled={isOffline}/>
               </div>
-              <input name="upi_id" type="text" placeholder="UPI ID (for payments)" value={formData.upi_id} onChange={handleChange} required className="w-full p-3 border-2 rounded-lg text-gray-900" disabled={isOffline}/>
+              <input name="upi_id" type="text" placeholder="UPI ID (for payments)" value={formData.upi_id} onChange={handleChange} required className="w-full p-3 border-2 rounded-lg text-gray-900 text-sm sm:text-base" disabled={isOffline}/>
               
               {error && (
                 <motion.p
@@ -128,13 +128,13 @@ export default function SignUpPage() {
               <button
                 type="submit"
                 disabled={isSubmitting || isOffline}
-                className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold p-3 rounded-lg flex items-center justify-center disabled:opacity-50"
+                className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold p-3 rounded-lg flex items-center justify-center disabled:opacity-50 text-sm sm:text-base"
               >
-                {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />}
                 {isSubmitting ? 'Registering...' : 'Create Account'}
               </button>
 
-              <p className="text-center text-gray-600">
+              <p className="text-center text-gray-600 text-sm sm:text-base">
                 Already have an account?{' '}
                 <Link href="/login" className="font-semibold text-indigo-600 hover:underline">
                   Log In

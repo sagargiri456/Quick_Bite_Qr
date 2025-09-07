@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import '@/styles/scrollbar.css';
 import { supabase } from '@/lib/supabase/client';
 import LiveOrdersComponent from '@/components/LiveOrdersComponent';
 import { Input } from '@/components/ui/input';
@@ -197,11 +198,11 @@ const LiveOrders = () => {
   }
 
   return (
-    <div>
+    <div className="h-[calc(100vh-80px)] overflow-y-auto hide-scrollbar">
       {/* Header + Search */}
       <div className="mb-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Live Orders</h2>
+
           {errorMsg && (
             <div className="mt-2 flex items-center gap-2 bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded-md text-sm">
               <AlertTriangle className="h-4 w-4" />
