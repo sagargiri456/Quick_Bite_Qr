@@ -197,7 +197,7 @@ export default function Cart({ isOpen, onClose, restaurantId, tableNumber, resta
       if (data?.success && data?.trackCode) {
         setOrderSuccess(true);
         clearCart();
-        router.push(`/(customer-end-pages)/restaurnat/${restaurantSlug}/orders/${data.trackCode}`);
+        router.push(`/restaurnat/${restaurantSlug}/orders/${data.trackCode}`);
       } else {
         throw new Error(data?.error || 'Failed to place postpaid order.');
       }
