@@ -8,6 +8,7 @@ import { Restaurant } from "@/types/restaurant";
 export async function getRestaurantBySlug(
   slug: string
 ): Promise<{ id: string; restaurant_name: string; slug: string } | null> {
+  
   const { data, error } = await supabase
     .from("restaurants")
     .select("id, restaurant_name, slug")

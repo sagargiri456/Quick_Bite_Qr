@@ -1,4 +1,4 @@
-'use client';
+ 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -8,63 +8,53 @@ import {
   SquareKanban,
   LogOut,
   ListOrdered,
+  Menu,
+  X,
 } from 'lucide-react';
 import { logout } from '@/lib/auth/logout';
 import { DashboardNavCards } from '@/components/DashboardNavCards';
-
-function NavItem({
-  href,
-  label,
-  icon: Icon,
-}: {
-  href: string;
-  label: string;
-  icon: React.ComponentType<{ size?: number }>;
-}) {
-  const pathname = usePathname();
-  const isActive = pathname.startsWith(href);
-
-  return (
-    <Link
-      href={href}
-      aria-current={isActive ? 'page' : undefined}
-      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-lg font-medium ${
-        isActive
-          ? 'bg-indigo-600 text-white shadow-md'
-          : 'text-gray-600 hover:bg-gray-100'
-      }`}
-    >
-      <Icon size={24} />
-      {label}
-    </Link>
-  );
-}
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-
-
-  const navItems = [
-    { href: '/dashboard', label: 'Home', icon: Home },
-    { href: '/dashboard/menu', label: 'Menu', icon: UtensilsCrossed },
-    { href: '/dashboard/tables', label: 'Tables', icon: SquareKanban },
-    { href: '/dashboard/orders', label: 'Orders', icon: ListOrdered }, // ✅ Orders added
-  ];
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Fixed Sidebar */}
-      <div className="fixed top-0 left-0 h-screen overflow-hidden">
-        <DashboardNavCards />
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md"
+      >
+        {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+      </button>
+
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={`
+        fixed top-0 left-0 h-screen overflow-hidden z-50
+        transform transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0 lg:fixed lg:z-auto lg:overflow-hidden
+      `}>
+        <DashboardNavCards onClose={() => setSidebarOpen(false)} />
       </div>
 
-      {/* Main Content Area with left padding to account for sidebar */}
-      <main className="flex-1 p-4 py-0 ml-64 overflow-auto">{children}</main>
+      {/* Main Content Area */}
+      <main className="flex-1 min-w-0 p-2 sm:p-4 lg:p-6 overflow-auto lg:ml-64">
+        <div className="pt-16 lg:pt-0">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

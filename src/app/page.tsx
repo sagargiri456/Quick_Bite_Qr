@@ -77,28 +77,37 @@ export default function Home() {
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-14 sm:h-16">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               className="flex items-center space-x-2"
             >
               <motion.div 
-                className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center"
+                className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center"
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.6 }}
               >
-                <QrCode className="w-5 h-5 text-white" />
+                <QrCode className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </motion.div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 QuickBiteQR
               </span>
             </motion.div>
-            <div className="hidden md:flex items-center space-x-8">
-              <Link href="/login" className="text-slate-600 hover:text-blue-600 transition-colors">
+            <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
+              <Link href="/login" className="text-slate-600 hover:text-blue-600 transition-colors text-sm lg:text-base">
                 Login
               </Link>
-              <Link href="/signup" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+              <Link href="/signup" className="bg-blue-600 text-white px-4 lg:px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm lg:text-base">
+                Get Started
+              </Link>
+            </div>
+            {/* Mobile menu button */}
+            <div className="md:hidden flex items-center space-x-2">
+              <Link href="/login" className="text-slate-600 hover:text-blue-600 transition-colors text-sm">
+                Login
+              </Link>
+              <Link href="/signup" className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors text-sm">
                 Get Started
               </Link>
             </div>
@@ -107,7 +116,7 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 relative">
+      <section className="pt-24 sm:pt-28 lg:pt-32 pb-16 sm:pb-20 px-4 sm:px-6 lg:px-8 relative">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial="initial"
@@ -119,17 +128,17 @@ export default function Home() {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.8 }}
-              className="mb-8"
+              className="mb-6 sm:mb-8"
             >
-              <div className="inline-flex items-center space-x-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium">
-                <Star className="w-4 h-4 fill-current" />
-                <span>Trusted by 10,000+ restaurants worldwide</span>
+              <div className="inline-flex items-center space-x-2 bg-blue-100 text-blue-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium">
+                <Star className="w-3 h-3 sm:w-4 sm:h-4 fill-current" />
+                <span>Trusted by 50+ restaurants worldwide</span>
               </div>
             </motion.div>
 
             <motion.h1
               variants={fadeInUp}
-              className="text-5xl md:text-7xl font-bold text-slate-900 mb-6"
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-slate-900 mb-4 sm:mb-6"
             >
               Transform Your
               <span className="block bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent animate-gradient-shift">
@@ -140,30 +149,30 @@ export default function Home() {
             
             <motion.p
               variants={fadeInUp}
-              className="text-xl text-slate-600 mb-8 max-w-3xl mx-auto"
+              className="text-base sm:text-lg lg:text-xl text-slate-600 mb-6 sm:mb-8 max-w-3xl mx-auto px-4"
             >
               Create stunning QR codes for your menu, track orders in real-time, and delight your customers with a modern dining experience.
             </motion.p>
 
             <motion.div
               variants={fadeInUp}
-              className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12"
+              className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center mb-8 sm:mb-12"
             >
               <Link href="/signup">
                 <motion.button
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:shadow-xl transition-all duration-300 flex items-center space-x-2 animate-pulse-glow"
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl text-base sm:text-lg font-semibold hover:shadow-xl transition-all duration-300 flex items-center space-x-2 animate-pulse-glow"
                 >
                   <span>Start Free Trial</span>
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                 </motion.button>
               </Link>
               <Link href="/login">
                 <motion.button
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
-                  className="border-2 border-slate-300 text-slate-700 px-8 py-4 rounded-xl text-lg font-semibold hover:border-blue-600 hover:text-blue-600 transition-all duration-300"
+                  className="border-2 border-slate-300 text-slate-700 px-6 sm:px-8 py-3 sm:py-4 rounded-xl text-base sm:text-lg font-semibold hover:border-blue-600 hover:text-blue-600 transition-all duration-300"
                 >
                   View Demo
                 </motion.button>
@@ -175,7 +184,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.8, duration: 0.6 }}
-              className="grid grid-cols-3 gap-8 max-w-2xl mx-auto"
+              className="grid grid-cols-3 gap-4 sm:gap-6 lg:gap-8 max-w-2xl mx-auto"
             >
               {[
                 { number: "5min", label: "Setup Time" },
@@ -183,8 +192,8 @@ export default function Home() {
                 { number: "Free", label: "Forever Plan" }
               ].map((stat, index) => (
                 <div key={index} className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{stat.number}</div>
-                  <div className="text-sm text-slate-600">{stat.label}</div>
+                  <div className="text-xl sm:text-2xl font-bold text-blue-600">{stat.number}</div>
+                  <div className="text-xs sm:text-sm text-slate-600">{stat.label}</div>
                 </div>
               ))}
             </motion.div>
@@ -268,8 +277,8 @@ export default function Home() {
             className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center"
           >
             {[
-              { number: "10K+", label: "Restaurants Served" },
-              { number: "1M+", label: "QR Codes Generated" },
+              { number: "50++", label: "Restaurants Served" },
+              { number: "500+", label: "QR Codes Generated" },
               { number: "99.9%", label: "Uptime Guarantee" }
             ].map((stat, index) => (
               <motion.div
@@ -330,7 +339,7 @@ export default function Home() {
               <span className="text-xl font-bold">QuickBiteQR</span>
             </div>
             <div className="text-slate-400">
-              © 2024 QuickBiteQR. All rights reserved.
+              © 2025 QuickBiteQR. All rights reserved.
             </div>
           </div>
         </div>

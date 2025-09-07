@@ -1,13 +1,15 @@
 import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 /**
  * Get details of the restaurant for the current authenticated user.
  */
-export async function getRestaurantDetails(cookies: any) {
+export async function getRestaurantDetails() {
+  const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies }
+    { cookies: cookieStore }
   );
 
   const {

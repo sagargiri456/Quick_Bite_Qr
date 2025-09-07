@@ -46,8 +46,9 @@ export const signUpWithRestaurant = async (formData: SignUpData) => {
     }
 
     return data?.user ?? null;
-  } catch (err: any) {
+  } catch (err: unknown) {
     // Ensure we never leak raw error text
-    throw new Error(err.message || 'Unexpected error during signup.');
+    const errorMessage = err instanceof Error ? err.message : 'Unexpected error during signup.';
+    throw new Error(errorMessage);
   }
 };

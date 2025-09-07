@@ -203,4 +203,116 @@
     border: 2px solid;
     border-image: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57, #ff9ff3, #54a0ff) 1;
   }
+
+  /* Custom Scrollbar Styles */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(148 163 184) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgb(148 163 184);
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(100 116 139);
+  }
+
+  .dark .scrollbar-thin {
+    scrollbar-color: rgb(71 85 105) transparent;
+  }
+
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgb(71 85 105);
+  }
+
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(51 65 85);
+  }
+
+  /* Enhanced Animations */
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.6s ease-out forwards;
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-bounce-gentle {
+    animation: bounceGentle 2s ease-in-out infinite;
+  }
+
+  @keyframes bounceGentle {
+    0%, 20%, 50%, 80%, 100% {
+      transform: translateY(0);
+    }
+    40% {
+      transform: translateY(-5px);
+    }
+    60% {
+      transform: translateY(-3px);
+    }
+  }
+
+  /* Responsive Enhancements */
+  @media (max-width: 640px) {
+    .text-responsive-xl { @apply text-lg; }
+    .text-responsive-lg { @apply text-base; }
+    .text-responsive-base { @apply text-sm; }
+    .space-responsive { @apply space-y-3; }
+    .gap-responsive { @apply gap-3; }
+    .grid-responsive { @apply grid-cols-1; }
+    .grid-responsive-wide { @apply grid-cols-2; }
+  }
+
+  @media (min-width: 641px) and (max-width: 1024px) {
+    .text-responsive-xl { @apply text-xl; }
+    .text-responsive-lg { @apply text-lg; }
+    .text-responsive-base { @apply text-base; }
+    .space-responsive { @apply space-y-4; }
+    .gap-responsive { @apply gap-4; }
+    .grid-responsive { @apply grid-cols-2; }
+    .grid-responsive-wide { @apply grid-cols-3; }
+  }
+
+  @media (min-width: 1025px) {
+    .text-responsive-xl { @apply text-2xl; }
+    .text-responsive-lg { @apply text-xl; }
+    .text-responsive-base { @apply text-lg; }
+    .space-responsive { @apply space-y-6; }
+    .gap-responsive { @apply gap-6; }
+    .grid-responsive { @apply grid-cols-3; }
+    .grid-responsive-wide { @apply grid-cols-4; }
+  }
 } 

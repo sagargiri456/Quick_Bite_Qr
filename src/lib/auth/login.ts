@@ -23,7 +23,7 @@ export const loginWithEmail = async (email: string, password: string) => {
     }
 
     return { data, error: null };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Unexpected login error:', err);
     return { data: null, error: 'An unexpected error occurred. Please try again.' };
   }

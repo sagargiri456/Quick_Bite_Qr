@@ -41,7 +41,7 @@ export default function LoginPage() {
 
     const { error } = await loginWithEmail(email, password)
     if (error) {
-      setError(error.message)
+      setError(error)
       setIsSubmitting(false)
     } else {
       router.push('/dashboard')
@@ -56,9 +56,9 @@ export default function LoginPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <div className="bg-white rounded-2xl shadow-md p-8">
-          <h1 className="text-3xl font-bold text-gray-800 text-center">Welcome Back!</h1>
-          <p className="text-gray-600 mt-2 text-center">Log in to manage your restaurant.</p>
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-6 sm:p-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 text-center">Welcome Back!</h1>
+          <p className="text-gray-600 mt-2 text-center text-sm sm:text-base">Log in to manage your restaurant.</p>
 
           {isOffline && (
             <p className="mt-3 text-center text-sm text-red-600 font-medium bg-red-100 p-2 rounded-lg">
@@ -66,9 +66,9 @@ export default function LoginPage() {
             </p>
           )}
 
-          <form onSubmit={handleLogin} className="mt-8 space-y-6">
+          <form onSubmit={handleLogin} className="mt-6 sm:mt-8 space-y-4 sm:space-y-6">
             <input
-              className="w-full p-3 border-2 rounded-lg text-gray-900"
+              className="w-full p-3 border-2 rounded-lg text-gray-900 text-sm sm:text-base"
               placeholder="Email"
               type="email"
               value={email}
@@ -78,7 +78,7 @@ export default function LoginPage() {
             />
 
             <input
-              className="w-full p-3 border-2 rounded-lg text-gray-900"
+              className="w-full p-3 border-2 rounded-lg text-gray-900 text-sm sm:text-base"
               placeholder="Password"
               type="password"
               value={password}
@@ -100,13 +100,13 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting || isOffline}
-              className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold p-3 rounded-lg flex items-center justify-center disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold p-3 rounded-lg flex items-center justify-center disabled:opacity-50 text-sm sm:text-base"
             >
-              {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />}
               {isSubmitting ? 'Logging In...' : 'Log In'}
             </button>
 
-            <p className="text-center text-gray-600">
+            <p className="text-center text-gray-600 text-sm sm:text-base">
               Don&apos;t have an account?{' '}
               <Link href="/signup" className="font-semibold text-indigo-600 hover:underline">
                 Sign Up

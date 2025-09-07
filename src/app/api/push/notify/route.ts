@@ -37,18 +37,20 @@ export async function POST(req: Request) {
         try {
           await webpush.sendNotification(subscription, payload);
           return { ok: true, endpoint: s.endpoint };
-        } catch (err: any) {
+        } catch (err: unknown) {
           // If subscription is gone, delete it from the DB
-          if (err.statusCode === 404 || err.statusCode === 410) {
+          const error = err as { statusCode?: number; message?: string };
+          if (error.statusCode === 404 || error.statusCode === 410) {
             await supabase.from('web_push_subscriptions').delete().eq('endpoint', s.endpoint);
           }
-          return { ok: false, error: err?.message, endpoint: s.endpoint };
+          return { ok: false, error: error?.message, endpoint: s.endpoint };
         }
       })
     );
 
     return NextResponse.json({ ok: true, results });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Unknown error' }, { status: 500 });
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

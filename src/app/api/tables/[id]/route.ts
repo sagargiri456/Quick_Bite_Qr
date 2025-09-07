@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 // Helper function to verify ownership
-async function verifyOwnership(supabase: any, tableId: string): Promise<boolean> {
+async function verifyOwnership(supabase: Awaited<ReturnType<typeof createServerClient>>, tableId: string): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return false;
 
@@ -29,13 +29,14 @@ async function verifyOwnership(supabase: any, tableId: string): Promise<boolean>
 
 
 // GET single table details
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createServerClient(); // FIXED: Removed await
+  const { id } = await params;
 
   const { data, error } = await supabase
     .from("tables")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (error) {
@@ -46,10 +47,11 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 }
 
 // PUT update table info
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createServerClient(); // FIXED: Removed await
+  const { id } = await params;
 
-  const isOwner = await verifyOwnership(supabase, params.id);
+  const isOwner = await verifyOwnership(supabase, id);
   if (!isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
@@ -60,7 +62,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   const { data, error } = await supabase
     .from("tables")
     .update({ table_number })
-    .eq("id", params.id)
+    .eq("id", id)
     .select()
     .single();
 
@@ -72,15 +74,16 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 // DELETE single table
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createServerClient(); // FIXED: Removed await
+  const { id } = await params;
 
-  const isOwner = await verifyOwnership(supabase, params.id);
+  const isOwner = await verifyOwnership(supabase, id);
   if (!isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  const { error } = await supabase.from("tables").delete().eq("id", params.id);
+  const { error } = await supabase.from("tables").delete().eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
