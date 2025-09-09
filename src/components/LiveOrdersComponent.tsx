@@ -239,7 +239,7 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
                               <span className="text-white">{order.order.id.slice(-6)}</span>
                             </Badge>
                             <Link
-                              href={`/(customer-end-pages)/restaurant/${order.order.restaurant.name.toLowerCase().replace(/\s+/g, '-')}/orders/${order.order.track_code}`}
+                              href={`/restaurant/${order.order.restaurant.name.toLowerCase().replace(/\s+/g, '-')}/orders/${order.order.track_code}`}
                               className="text-sm font-semibold text-primary hover:text-primary/80 hover:underline flex items-center gap-1 transition-colors group/link"
                               target="_blank"
                             >
