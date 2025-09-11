@@ -5,7 +5,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Tag, CircleDollarSign, AlertCircle, History, CheckCircle, XCircle } from 'lucide-react';
+import { Clock, Tag, CircleDollarSign, AlertCircle, History, CheckCircle, XCircle, ChefHat, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Define the type for our orders directly in this file
@@ -143,19 +143,36 @@ export default async function OrderHistoryPage() {
                     variant={getStatusVariant(order.status)} 
                     className={cn(
                       "px-3 py-1.5 sm:px-4 sm:py-2 text-xs font-semibold rounded-full shadow-sm hover:shadow-md transition-all duration-300 group-hover:scale-105 whitespace-nowrap tracking-wide",
-                      order.status === 'complete' 
-                        ? 'bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-800 border border-emerald-100 hover:border-emerald-200'
-                        : 'bg-gradient-to-r from-red-50 to-red-100 text-red-800 border border-red-100 hover:border-red-200'
+                      // distinct colors per status (UI-only)
+                      order.status === 'confirmed' && 'bg-blue-50 border border-blue-100 text-blue-700 hover:border-blue-200',
+                      order.status === 'preparing' && 'bg-purple-50 border border-purple-100 text-purple-700 hover:border-purple-200',
+                      order.status === 'ready' && 'bg-emerald-50 border border-emerald-100 text-emerald-700 hover:border-emerald-200',
+                      order.status === 'cancelled' && 'bg-rose-50 border border-rose-100 text-rose-700 hover:border-rose-200',
+                      order.status === 'complete' && 'bg-emerald-50 border border-emerald-100 text-emerald-700 hover:border-emerald-200',
+                      ['pending'].includes(order.status) && 'bg-slate-50 border border-slate-100 text-slate-700 hover:border-slate-200'
                     )}
                   >
                     <span className="flex items-center gap-1.5">
-                      {order.status === 'complete' ? (
+                      {order.status === 'confirmed' && (
                         <CheckCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                      ) : (
+                      )}
+                      {order.status === 'preparing' && (
+                        <ChefHat className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                      )}
+                      {order.status === 'ready' && (
+                        <Package className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                      )}
+                      {order.status === 'cancelled' && (
                         <XCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
                       )}
+                      {order.status === 'complete' && (
+                        <CheckCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                      )}
+                      {order.status === 'pending' && (
+                        <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                      )}
                       <span className="hidden sm:inline">{order.status}</span>
-                      <span className="sm:hidden">{order.status === 'complete' ? 'Done' : 'Cancelled'}</span>
+                      <span className="sm:hidden">{order.status}</span>
                     </span>
                   </Badge>
                 </div>
@@ -198,10 +215,24 @@ export default async function OrderHistoryPage() {
                       </p>
                     </div>
                     <div className="hidden sm:block w-1 h-1 bg-slate-300 rounded-full"></div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0"></div>
-                      <span className="text-xs text-emerald-600 font-semibold whitespace-nowrap">
-                        {order.status === 'complete' ? 'Completed' : 'Cancelled'}
+                    <div className={cn("flex items-center gap-1", 
+                      order.status === 'confirmed' && 'text-blue-700',
+                      order.status === 'preparing' && 'text-purple-700',
+                      order.status === 'ready' && 'text-emerald-700',
+                      order.status === 'cancelled' && 'text-rose-700',
+                      order.status === 'complete' && 'text-emerald-700',
+                      ['pending'].includes(order.status) && 'text-slate-700'
+                    )}>
+                      <div className={cn('w-2 h-2 rounded-full flex-shrink-0',
+                        order.status === 'confirmed' && 'bg-blue-500',
+                        order.status === 'preparing' && 'bg-purple-500',
+                        order.status === 'ready' && 'bg-emerald-500',
+                        order.status === 'cancelled' && 'bg-rose-500',
+                        order.status === 'complete' && 'bg-emerald-500',
+                        ['pending'].includes(order.status) && 'bg-slate-400'
+                      )}></div>
+                      <span className="text-xs font-semibold whitespace-nowrap">
+                        {order.status === 'complete' ? 'Completed' : order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                       </span>
                     </div>
                   </div>

@@ -337,21 +337,24 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
                             size="sm"
                             variant={order.status === 'Pending' ? 'default' : 'outline'}
                             className={cn(
-                              "h-10 sm:h-9 text-xs font-semibold transition-all duration-300 rounded-lg shadow-sm hover:shadow-md flex-1 sm:flex-none",
+                              "relative h-10 sm:h-9 text-xs font-semibold transition-all duration-300 rounded-lg shadow-sm hover:shadow-md flex-1 sm:flex-none overflow-hidden disabled:opacity-100 drop-shadow-[0_6px_12px_rgba(79,70,229,0.25)] hover:drop-shadow-[0_10px_18px_rgba(79,70,229,0.35)] disabled:drop-shadow-[0_14px_28px_rgba(79,70,229,0.55)]",
                               order.status === 'Pending' 
-                                ? "bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white border-0" 
-                                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-300"
+                                ? "bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white border-0" 
+                                : "bg-indigo-50 hover:bg-indigo-100 border-indigo-200 disabled:bg-indigo-700 disabled:text-white disabled:border-indigo-700"
                             )}
                             disabled={isUpdating || order.status !== 'Pending'}
                             onClick={() => handleUpdate(order.order.id, 'Confirmed')}
                           >
+                            {order.status !== 'Pending' && (
+                              <span className="pointer-events-none absolute inset-0 bg-indigo-700 ring-1 ring-inset ring-indigo-700 opacity-100" aria-hidden="true" />
+                            )}
                             {isUpdating && order.status === 'Pending' ? (
-                              <div className="flex items-center gap-2">
+                              <div className="relative z-10 flex items-center gap-2">
                                 <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                                 Updating...
                               </div>
                             ) : (
-                              <div className="flex items-center gap-1.5">
+                              <div className="relative z-10 flex items-center gap-1.5">
                                 <CheckCircle className="h-3.5 w-3.5" />
                                 <span className="hidden sm:inline">Confirm Order</span>
                                 <span className="sm:hidden">Confirm</span>
@@ -381,21 +384,24 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
                               size="sm"
                               variant={order.status === 'Preparing' ? 'default' : 'outline'}
                               className={cn(
-                                "h-10 sm:h-9 text-xs font-semibold transition-all duration-300 rounded-lg shadow-sm hover:shadow-md flex-1 sm:flex-none",
+                                "relative h-10 sm:h-9 text-xs font-semibold transition-all duration-300 rounded-lg shadow-sm hover:shadow-md flex-1 sm:flex-none overflow-hidden disabled:opacity-100 drop-shadow-[0_6px_12px_rgba(147,51,234,0.25)] hover:drop-shadow-[0_10px_18px_rgba(147,51,234,0.35)] disabled:drop-shadow-[0_14px_28px_rgba(147,51,234,0.55)]",
                                 order.status === 'Preparing' 
                                   ? "bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white border-0" 
-                                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-300"
+                                  : "bg-purple-50 hover:bg-purple-100 border-purple-200 disabled:bg-purple-700 disabled:text-white disabled:border-purple-700"
                               )}
                               disabled={isUpdating || (order.status !== 'Pending' && order.status !== 'Confirmed')}
                               onClick={() => handleUpdate(order.order.id, 'Preparing', eta)}
                             >
+                              {(order.status !== 'Preparing') && (
+                                <span className="pointer-events-none absolute inset-0 bg-purple-700 ring-1 ring-inset ring-purple-700 opacity-100" aria-hidden="true" />
+                              )}
                               {isUpdating && order.status === 'Confirmed' ? (
-                                <div className="flex items-center gap-2">
+                                <div className="relative z-10 flex items-center gap-2">
                                   <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                                   Updating...
                                 </div>
                               ) : (
-                                <div className="flex items-center gap-1.5">
+                                <div className="relative z-10 flex items-center gap-1.5">
                                   <ChefHat className="h-3.5 w-3.5" />
                                   <span className="hidden sm:inline">Start Preparing ({eta}m)</span>
                                   <span className="sm:hidden">Preparing ({eta}m)</span>
@@ -408,21 +414,24 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
                             size="sm"
                             variant={order.status === 'Ready' ? 'default' : 'outline'}
                             className={cn(
-                              "h-10 sm:h-9 text-xs font-semibold transition-all duration-300 rounded-lg shadow-sm hover:shadow-md flex-1 sm:flex-none",
+                              "relative h-10 sm:h-9 text-xs font-semibold transition-all duration-300 rounded-lg shadow-sm hover:shadow-md flex-1 sm:flex-none overflow-hidden disabled:opacity-100 drop-shadow-[0_6px_12px_rgba(16,185,129,0.25)] hover:drop-shadow-[0_10px_18px_rgba(16,185,129,0.35)] disabled:drop-shadow-[0_14px_28px_rgba(16,185,129,0.55)]",
                               order.status === 'Ready' 
                                 ? "bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white border-0" 
-                                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-300"
+                                : "bg-emerald-50 hover:bg-emerald-100 border-emerald-200 disabled:bg-emerald-700 disabled:text-white disabled:border-emerald-700"
                             )}
                             disabled={isUpdating || order.status !== 'Preparing'}
                             onClick={() => handleUpdate(order.order.id, 'Ready')}
                           >
+                            {order.status !== 'Ready' && (
+                              <span className="pointer-events-none absolute inset-0 bg-emerald-700 ring-1 ring-inset ring-emerald-700 opacity-100" aria-hidden="true" />
+                            )}
                             {isUpdating ? (
-                              <div className="flex items-center gap-2">
+                              <div className="relative z-10 flex items-center gap-2">
                                 <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                                 Updating...
                               </div>
                             ) : (
-                              <div className="flex items-center gap-1.5">
+                              <div className="relative z-10 flex items-center gap-1.5">
                                 <Package className="h-3.5 w-3.5" />
                                 <span className="hidden sm:inline">Mark as Ready</span>
                                 <span className="sm:hidden">Ready</span>
@@ -433,7 +442,7 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-10 sm:h-9 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20 hover:border-destructive/40 transition-all duration-300 rounded-lg shadow-sm hover:shadow-md flex-1 sm:flex-none sm:ml-auto"
+                            className="h-10 sm:h-9 text-xs font-semibold bg-rose-50 hover:bg-rose-100 border-rose-200 hover:border-rose-300 transition-all duration-300 rounded-lg shadow-sm hover:shadow-md flex-1 sm:flex-none sm:ml-auto disabled:opacity-100 disabled:bg-rose-700 disabled:text-white disabled:border-rose-700 drop-shadow-[0_6px_12px_rgba(244,63,94,0.25)] hover:drop-shadow-[0_10px_18px_rgba(244,63,94,0.35)] disabled:drop-shadow-[0_14px_28px_rgba(244,63,94,0.55)]"
                             disabled={isUpdating || order.status === 'Ready' || order.status === 'Cancelled'}
                             onClick={() => {
                               if (confirm('Are you sure you want to cancel this order?')) {
