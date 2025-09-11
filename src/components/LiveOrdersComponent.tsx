@@ -60,7 +60,7 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
       case 'Pending': return <Clock className="h-4 w-4" />;
       case 'Confirmed': return <CheckCircle className="h-4 w-4" />;
       case 'Preparing': return <ChefHat className="h-4 w-4" />;
-      case 'Ready': return <CheckCircle className="h-4 w-4" />;
+      case 'Serve': return <CheckCircle className="h-4 w-4" />;
       case 'Cancelled': return <XCircle className="h-4 w-4" />;
       default: return <Clock className="h-4 w-4" />;
     }
@@ -71,7 +71,7 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
       case 'Cancelled': return 'destructive';
       case 'Confirmed':
       case 'Preparing':
-      case 'Ready': return 'default';
+      case 'Serve': return 'default';
       case 'Pending':
       default: return 'secondary';
     }
@@ -202,10 +202,10 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
               <span className="truncate">Preparing</span>
             </span>
           </TabsTrigger>
-          <TabsTrigger value="Ready" className="flex-1 min-w-[70px] sm:min-w-[90px] data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 data-[state=active]:shadow-md font-medium transition-all duration-300 rounded-lg text-[13px] sm:text-[14px] border border-transparent data-[state=active]:border-emerald-100 h-9 font-sans">
+          <TabsTrigger value="Serve" className="flex-1 min-w-[70px] sm:min-w-[90px] data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 data-[state=active]:shadow-md font-medium transition-all duration-300 rounded-lg text-[13px] sm:text-[14px] border border-transparent data-[state=active]:border-emerald-100 h-9 font-sans">
             <span className="flex items-center gap-1">
               <Package className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
-              <span className="truncate">Ready</span>
+              <span className="truncate">Serve</span>
             </span>
           </TabsTrigger>
         </TabsList>
@@ -223,7 +223,7 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
                       order.status === 'Pending' ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 
                       order.status === 'Confirmed' ? 'bg-gradient-to-r from-slate-400 to-slate-500' :
                       order.status === 'Preparing' ? 'bg-gradient-to-r from-purple-400 to-purple-500' :
-                      order.status === 'Ready' ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-red-400 to-red-500'
+                      order.status === 'Serve' ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-red-400 to-red-500'
                     )} />
                     
                     {/* Animated background gradient */}
@@ -263,7 +263,7 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
                               order.status === 'Pending' && 'bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 border border-amber-200',
                               order.status === 'Confirmed' && 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-800 border border-slate-200',
                               order.status === 'Preparing' && 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-200',
-                              order.status === 'Ready' && 'bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-800 border border-emerald-200',
+                              order.status === 'Serve' && 'bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-800 border border-emerald-200',
                               order.status === 'Cancelled' && 'bg-gradient-to-r from-red-100 to-red-200 text-red-800 border border-red-200',
                               "group-hover:scale-105"
                             )}
@@ -367,7 +367,7 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
                               className={cn(
                                 "h-10 sm:h-9 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1 text-xs font-medium shadow-sm transition-all duration-300 flex-1 sm:flex-none",
                                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary",
-                                "disabled:cursor-not-allowed disabled:opacity-50",
+                                "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-indigo-700 disabled:text-white",
                                 "hover:border-primary/50 hover:shadow-md"
                               )}
                               value={eta}
@@ -412,17 +412,17 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
 
                           <Button
                             size="sm"
-                            variant={order.status === 'Ready' ? 'default' : 'outline'}
+                            variant={order.status === 'Serve' ? 'default' : 'outline'}
                             className={cn(
                               "relative h-10 sm:h-9 text-xs font-semibold transition-all duration-300 rounded-lg shadow-sm hover:shadow-md flex-1 sm:flex-none overflow-hidden disabled:opacity-100 drop-shadow-[0_6px_12px_rgba(16,185,129,0.25)] hover:drop-shadow-[0_10px_18px_rgba(16,185,129,0.35)] disabled:drop-shadow-[0_14px_28px_rgba(16,185,129,0.55)]",
-                              order.status === 'Ready' 
+                              order.status === 'Serve' 
                                 ? "bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white border-0" 
                                 : "bg-emerald-50 hover:bg-emerald-100 border-emerald-200 disabled:bg-emerald-700 disabled:text-white disabled:border-emerald-700"
                             )}
                             disabled={isUpdating || order.status !== 'Preparing'}
-                            onClick={() => handleUpdate(order.order.id, 'Ready')}
+                            onClick={() => handleUpdate(order.order.id, 'Serve')}
                           >
-                            {order.status !== 'Ready' && (
+                            {order.status !== 'Serve' && (
                               <span className="pointer-events-none absolute inset-0 bg-emerald-700 ring-1 ring-inset ring-emerald-700 opacity-100" aria-hidden="true" />
                             )}
                             {isUpdating ? (
@@ -433,8 +433,8 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
                             ) : (
                               <div className="relative z-10 flex items-center gap-1.5">
                                 <Package className="h-3.5 w-3.5" />
-                                <span className="hidden sm:inline">Mark as Ready</span>
-                                <span className="sm:hidden">Ready</span>
+                                <span className="hidden sm:inline">Mark as Serve</span>
+                                <span className="sm:hidden">Serve</span>
                               </div>
                             )}
                           </Button>
@@ -443,7 +443,7 @@ const LiveOrdersComponent: React.FC<LiveOrdersComponentProps> = ({
                             size="sm"
                             variant="outline"
                             className="h-10 sm:h-9 text-xs font-semibold bg-rose-50 hover:bg-rose-100 border-rose-200 hover:border-rose-300 transition-all duration-300 rounded-lg shadow-sm hover:shadow-md flex-1 sm:flex-none sm:ml-auto disabled:opacity-100 disabled:bg-rose-700 disabled:text-white disabled:border-rose-700 drop-shadow-[0_6px_12px_rgba(244,63,94,0.25)] hover:drop-shadow-[0_10px_18px_rgba(244,63,94,0.35)] disabled:drop-shadow-[0_14px_28px_rgba(244,63,94,0.55)]"
-                            disabled={isUpdating || order.status === 'Ready' || order.status === 'Cancelled'}
+                            disabled={isUpdating || order.status === 'Serve' || order.status === 'Cancelled'}
                             onClick={() => {
                               if (confirm('Are you sure you want to cancel this order?')) {
                                 handleUpdate(order.order.id, 'Cancelled');

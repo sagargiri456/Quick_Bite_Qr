@@ -2,7 +2,7 @@
 import { CartItem } from '@/app/(customer-end-pages)/store/cartStore';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'complete' | 'cancelled';
-export type CustomerOrderStatus = 'Pending' | 'Confirmed' | 'Preparing' | 'Ready' | 'Complete' | 'Cancelled';
+export type CustomerOrderStatus = 'Pending' | 'Confirmed' | 'Preparing' | 'Serve' |'Complete' | 'Cancelled';
 
 async function putJson(url: string, body: object) {
   const res = await fetch(url, {

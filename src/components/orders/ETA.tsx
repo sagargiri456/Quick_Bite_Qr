@@ -18,7 +18,7 @@ export default function ETA({
     if (currentStatus === 'Pending') return 20;
     if (currentStatus === 'Confirmed') return 18;
     if (currentStatus === 'Preparing') return 10;
-    if (currentStatus === 'Ready') return 2;
+    if (currentStatus === 'Serve') return 2;
     return 0;
   }, [etaMinutes, currentStatus]);
 

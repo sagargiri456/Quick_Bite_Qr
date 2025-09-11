@@ -7,7 +7,7 @@ import LiveOrdersComponent from '@/components/LiveOrdersComponent';
 import { Input } from '@/components/ui/input';
 import { AlertTriangle } from 'lucide-react';
 
-export type OrderItemStatus = 'Pending' | 'Confirmed' | 'Preparing' | 'Ready' | 'Cancelled';
+export type OrderItemStatus = 'Pending' | 'Confirmed' | 'Preparing' | 'Serve' |  'Cancelled';
 
 // MODIFIED: Added is_prepaid to the order object
 export interface OrderItem {
@@ -43,7 +43,7 @@ const LiveOrders = () => {
       case 'pending': return 'Pending';
       case 'confirmed': return 'Confirmed';
       case 'preparing': return 'Preparing';
-      case 'ready': return 'Ready';
+      case 'ready': return 'Serve';
       case 'cancelled': return 'Cancelled';
       default: return null;
     }

@@ -3,13 +3,13 @@
 import React from 'react';
 import { CheckCircle2, Circle } from 'lucide-react';
 
-export type CustomerOrderStatus = 'Pending' | 'Confirmed' | 'Preparing' | 'Ready' | 'Complete' | 'Cancelled';
+export type CustomerOrderStatus = 'Pending' | 'Confirmed' | 'Preparing' | 'Serve' | 'Complete' | 'Cancelled';
 
 const STEPS: { key: CustomerOrderStatus; label: string }[] = [
   { key: 'Pending',   label: 'Payment confirmation' },
   { key: 'Confirmed', label: 'Order received' },
   { key: 'Preparing', label: 'Being cooked' },
-  { key: 'Ready',     label: 'Ready to serve' },
+  { key: 'Serve',     label: 'Ready to serve' },
   { key: 'Complete',  label: 'Completed' },
 ];
 
