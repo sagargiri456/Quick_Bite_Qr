@@ -108,7 +108,12 @@ export default async function OrderHistoryPage() {
               {/* Status indicator bar */}
               <div className={cn(
                 "absolute top-0 left-0 h-2 w-full",
-                order.status === 'complete' ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-red-400 to-red-500'
+                order.status === 'pending' && 'bg-gradient-to-r from-amber-400 to-amber-500',
+                order.status === 'confirmed' && 'bg-gradient-to-r from-blue-400 to-blue-500',
+                order.status === 'preparing' && 'bg-gradient-to-r from-purple-400 to-purple-500',
+                order.status === 'ready' && 'bg-gradient-to-r from-emerald-400 to-emerald-500',
+                order.status === 'complete' && 'bg-gradient-to-r from-emerald-400 to-emerald-500',
+                order.status === 'cancelled' && 'bg-gradient-to-r from-red-400 to-red-500'
               )} />
               
               {/* Animated background gradient */}
